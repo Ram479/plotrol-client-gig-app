@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="Gradle: com.ibm.icu:icu4j:74.2" type="AndroidModuleLibraryType">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.ibm.icu/icu4j/74.2/97222d018f7f43cae88cacd1fad39717b001ffc4/icu4j-74.2.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

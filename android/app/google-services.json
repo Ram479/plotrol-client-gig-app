@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "569580842714",
+    "project_id": "plotrol",
+    "storage_bucket": "plotrol.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:569580842714:android:baa4de93f054d1b437bfe3",
+        "android_client_info": {
+          "package_name": "com.plotrol.client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNgDuMjv_1ApU3elILzL_lHcRr4UaSzjc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:569580842714:android:6ab679b44a4359e037bfe3",
+        "android_client_info": {
+          "package_name": "com.plotrol.staff"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNgDuMjv_1ApU3elILzL_lHcRr4UaSzjc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

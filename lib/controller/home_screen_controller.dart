@@ -287,53 +287,79 @@ class HomeScreenController extends GetxController {
   Future<List<ServiceWrapper>> enrichOrdersWithImageUrls(
       List<ServiceWrapper> orders, String tenantId) async {
     try {
-      // Step 1: Build map of fileStoreId → Household
-      final Map<String, ServiceWrapper> fileStoreIdToOrder = {};
+      // Step 1: Build map of fileStoreId → List<ServiceWrapper>
+      final Map<String, List<ServiceWrapper>> fileStoreIdToOrders = {};
+      final Map<String, List<ServiceWrapper>> reportFileStoreIdToOrders = {};
 
+      // Step 1a: Handle household.image fields
       for (var hh in orders) {
-        final imageFields = (jsonDecode((hh.service?.additionalDetail ?? '{}')
-            .toString()) as Map?)?['household']?['image'] != null
-            ? [
-          (jsonDecode((hh.service?.additionalDetail ?? '{}')
-              .toString()) as Map?)?['household']?['image']
-        ]
-            : [];
+        final additionalDetail = hh.service?.additionalDetail ?? '{}';
+        final additionalDetailMap = jsonDecode(additionalDetail.toString()) as Map?;
 
-        for (var field in imageFields) {
-          final fileStoreId = field;
-          if (fileStoreId != null && fileStoreId
-              .trim()
-              .isNotEmpty) {
-            fileStoreIdToOrder[fileStoreId] = hh;
+        final imageField = additionalDetailMap?['household']?['image'];
+        if (imageField != null && imageField.toString().trim().isNotEmpty) {
+          final fileStoreId = imageField.toString();
+          fileStoreIdToOrders.putIfAbsent(fileStoreId, () => []).add(hh);
+        }
+      }
+
+      final allFileStoreIds = fileStoreIdToOrders.keys.toSet().toList();
+      if (allFileStoreIds.isNotEmpty) {
+        final List<FileStoreModel>? fileStoreModels = await fetchFiles(allFileStoreIds, tenantId);
+        if (fileStoreModels != null) {
+          for (var file in fileStoreModels) {
+            final ordersForId = fileStoreIdToOrders[file.id];
+            if (ordersForId != null && file.url != null && file.url!.isNotEmpty) {
+              for (var hh in ordersForId) {
+                hh.imageUrls ??= [];
+                hh.imageUrls!.add(file.url!.split(',').first);
+              }
+            }
           }
         }
       }
 
-      final allFileStoreIds = fileStoreIdToOrder.keys.toSet().toList();
-      if (allFileStoreIds.isEmpty) return orders;
+      // Step 1b: Handle report_ keys
+      for (var order in orders) {
+        final additionalDetailStr = order.service?.additionalDetail ?? '{}';
+        final additionalDetailMap = jsonDecode(additionalDetailStr.toString()) as Map?;
 
-      // Step 2: Fetch file metadata
-      final List<FileStoreModel>? fileStoreModels = await fetchFiles(
-          allFileStoreIds, tenantId);
-      if (fileStoreModels == null) return orders;
+        // Extract values where keys start with 'report_'
+        final reportImageFields = additionalDetailMap?.entries
+            .where((entry) => entry.key.toString().startsWith('report_'))
+            .map((entry) => entry.value)
+            .where((value) => value != null && value.toString().trim().isNotEmpty)
+            .toList() ?? [];
 
-      // Step 3: Map each URL to the correct household
-      for (var file in fileStoreModels) {
-        final hh = fileStoreIdToOrder[file.id];
-        if (hh != null) {
-          hh.imageUrls ??= [];
-          if (file.url != null && file.url!.isNotEmpty) {
-            hh.imageUrls!.add(file.url!.split(',').first);
+        for (var field in reportImageFields) {
+          final fileStoreId = field.toString();
+          reportFileStoreIdToOrders.putIfAbsent(fileStoreId, () => []).add(order);
+        }
+      }
+
+      final allReportFileStoreIds = reportFileStoreIdToOrders.keys.toSet().toList();
+      if (allReportFileStoreIds.isNotEmpty) {
+        final List<FileStoreModel>? reportFileStoreModels = await fetchFiles(
+            allReportFileStoreIds, tenantId);
+        if (reportFileStoreModels != null) {
+          for (var file in reportFileStoreModels) {
+            final ordersForId = reportFileStoreIdToOrders[file.id];
+            if (ordersForId != null && file.url != null && file.url!.isNotEmpty) {
+              for (var ord in ordersForId) {
+                ord.reportUrls ??= [];
+                ord.reportUrls!.add(file.url!.split(',').first);
+              }
+            }
           }
         }
       }
 
       return orders;
-    }
-    catch(e){
+    } catch (e) {
       return orders;
     }
   }
+
   getOrdersResult() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final mobileNumber = prefs.getString('mobileNumber') ;
@@ -364,6 +390,14 @@ class HomeScreenController extends GetxController {
       DateTime now = DateTime.now();
       String today =
           DateFormat('dd/MM/yyyy').format(now); // Format to match assignDate
+      // Start of the day: 12:00 AM
+      DateTime startDateTime = DateTime(now.year, now.month, now.day, 0, 0, 0, 0);
+      int startDate = startDateTime.millisecondsSinceEpoch;
+      print("StartDate: ${startDate}");
+      // End of the day: 11:59:59.999 PM
+      DateTime endDateTime = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+      int endDate = endDateTime.millisecondsSinceEpoch;
+      print("EndDate: ${endDate}");
 
       for (var order in getOrderDetails) {
         if (order.workflow?.action == 'CREATE') {
@@ -376,7 +410,7 @@ class HomeScreenController extends GetxController {
           continue;
         }
 
-        if (assignDate == today) {
+        if ((order.service?.auditDetails?.createdTime ?? 0) >= startDate && (order.service?.auditDetails?.createdTime ?? 0) <=  endDate ) {
           todayOrders.add(order);
         } else {
           otherOrders.add(order);

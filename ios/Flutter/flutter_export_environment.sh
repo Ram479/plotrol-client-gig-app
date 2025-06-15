@@ -1,7 +1,7 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
 export "FLUTTER_ROOT=C:\src-3.22.2\flutter"
-export "FLUTTER_APPLICATION_PATH=C:\Users\egov-\Documents\eGov Projects\external\plotrol"
+export "FLUTTER_APPLICATION_PATH=C:\Users\egov-\Documents\eGov Projects\external\Plotrol GitHub\plotrol"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_TARGET=lib\main.dart"
 export "FLUTTER_BUILD_DIR=build"

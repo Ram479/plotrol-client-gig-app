@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:plotrol/controller/order_details_controlller.dart';
 import 'package:plotrol/globalWidgets/custom_scaffold_widget.dart';
@@ -476,22 +479,154 @@ class OrderDetailScreen extends StatelessWidget {
                   ) : SizedBox(),
                   const SizedBox(height: 10),
                   if(order.service?.applicationStatus != "RESOLVED" && controller.isHelpDeskUser)
+                    InkWell(
+                    onTap: () {
+                      controller.getImageList();
+                    },
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: DottedBorder(
+                            dashPattern: [6, 6],
+                            borderType: BorderType.RRect,
+                            radius: const Radius.circular(12),
+                            padding: const EdgeInsets.all(6),
+                            child: ClipRRect(
+                              borderRadius:
+                              const BorderRadius.all(Radius.circular(12)),
+                              child: Container(
+                                height: 180,
+                                width: Get.width,
+                                color: Colors.grey.withOpacity(0.5),
+                                child: (controller.images?.isEmpty ?? false)
+                                    ? const Column(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add,
+                                      size: 40,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(height: 8),
+                                    ReusableTextWidget(
+                                      text: 'Upload Image',
+                                      fontSize: 18,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    )
+                                  ],
+                                )
+                                    : ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: controller.images!.length,
+                                  itemBuilder: (context, index) {
+                                    final XFile image =
+                                    controller.images![index];
+                                    return Container(
+                                      margin: const EdgeInsets.symmetric(
+                                          horizontal:
+                                          5.0), // Add margin for spacing
+                                      child: Stack(children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                              8.0), // Add rounded corners (optional)
+                                          child: Image.file(
+                                            File(image.path),
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error,
+                                                stackTrace) {
+                                              return const Center(
+                                                child: Icon(
+                                                  Icons.error,
+                                                  color: Colors.red,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top:
+                                          -2, // Adjust position as needed
+                                          right:
+                                          -2, // Adjust position as needed
+                                          child: IconButton(
+                                            icon: const Icon(Icons.cancel,
+                                                color: Colors.white),
+                                            onPressed: () {
+                                              controller
+                                                  .removeImageList(index);
+                                            },
+                                          ),
+                                        ),
+                                      ]),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if(order.service?.applicationStatus == "RESOLVED" )
+                    Column(
+                      children: [
+                        const ReusableTextWidget(
+                          text: 'Attached Evidence',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 20,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 0),
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(10.0),
+                              bottomLeft: Radius.circular(10.0),
+                            ),
+                            child: (order.reportUrls ?? []).isNotEmpty
+                                ? Image.network(
+                              order.reportUrls?.firstOrNull ?? ImageAssetsConst.sampleRoomPage,
+                              width: 120,
+                              height: 140,
+                              fit: BoxFit.fill,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.network(
+                                  ImageAssetsConst.sampleRoomPage,
+                                  width: 120,
+                                  height: 140,
+                                  fit: BoxFit.fill,
+                                );
+                              },
+                            )
+                                : SizedBox.shrink(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(
+                    height: 25,
+                  ),
+                  if(order.service?.applicationStatus != "RESOLVED" && controller.isHelpDeskUser)
                     ListView.builder(
                     physics: const NeverScrollableScrollPhysics(),
                     shrinkWrap: true,
                     itemCount: controller.checkBoxOptions.length,
                     itemBuilder: (context, index) {
-                      String option = controller.checkBoxOptions[index];
-                      bool isChecked = controller.selectedCheckBoxItems.contains(option);
+                      Map<String, String>? option = controller.checkBoxOptions[index];
+                      bool isChecked = controller.selectedCheckBoxItems.contains(option["key"]);
 
                       return CheckboxListTile(
-                        title: Text(option),
+                        title: Text(option["name"].toString()),
                         value: isChecked,
                         onChanged: (bool? value) {
+                          print("Checking the option:");
+                          print(value);
                           if (value == true) {
-                            controller.selectedCheckBoxItems.add(option);
+                            controller.selectedCheckBoxItems.add(option["key"].toString());
                           } else {
-                            controller.selectedCheckBoxItems.remove(option);
+                            controller.selectedCheckBoxItems.remove(option["key"].toString());
                           }
                           controller.update();
                         },
@@ -507,10 +642,15 @@ class OrderDetailScreen extends StatelessWidget {
                       itemCount: additionalDetailMap['checklist'] != null ? additionalDetailMap['checklist'].toString().split("|").length : 0,
                       itemBuilder: (context, index) {
                         String option = additionalDetailMap['checklist'].toString().split("|").elementAt(index);
+                        String? displayName = controller.checkBoxOptions
+                            .firstWhere(
+                              (item) => item['key'] == option,
+                          orElse: () => {'name': option}, // Fallback to key if not found
+                        )['name'];
                         bool isChecked = true;
 
                         return additionalDetailMap['checklist'] != null ? CheckboxListTile(
-                          title: Text(option),
+                          title: Text(displayName.toString()),
                           value: isChecked,
                           onChanged: null,
                           activeColor: Colors.black,
@@ -543,7 +683,7 @@ class OrderDetailScreen extends StatelessWidget {
                 borderRadius: 10,
                 controller: controller.btnController,
                 child:   ReusableTextWidget(
-                  text: controller.isPGRAdmin && order.service?.applicationStatus != "RESOLVED"? 'Assign' : controller.isHelpDeskUser && order.service?.applicationStatus != "RESOLVED" ? 'Done' : 'Back',
+                  text: controller.isPGRAdmin && order.service?.applicationStatus != "RESOLVED"? 'Assign' : controller.isHelpDeskUser && order.service?.applicationStatus != "RESOLVED" ? 'Submit the Report' : 'Back',
                   color: Colors.white,
                   fontSize: 16,
                 ),

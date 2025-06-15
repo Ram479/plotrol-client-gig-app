@@ -117,9 +117,9 @@ class AddYourPropertiesController extends GetxController {
   final _picker = ImagePicker();
 
   Future getImageList() async {
-    final List<XFile> selectedImages = await _picker.pickMultiImage(limit: 4);
+    final List<XFile> selectedImages = await _picker.pickMultiImage(limit: 1);
     if (selectedImages.isNotEmpty &&
-        (selectedImages.length < 4 && images!.length < 4)) {
+        (selectedImages.length > 0 && selectedImages.length < 2 && images!.length < 2)) {
       print('SelectedImageLength : ${selectedImages.length}');
       print('ImageLength  : ${images!.length}');
       images!.addAll(selectedImages);

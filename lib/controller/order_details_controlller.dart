@@ -1,17 +1,23 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:get/get.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:mime/mime.dart';
 import 'package:plotrol/data/repository/assignees/get_assignees_repo.dart';
 import 'package:plotrol/model/response/book_service/pgr_create_response.dart';
 import 'package:plotrol/model/response/employee_response/employee_search_response.dart';
 import 'package:plotrol/view/gig_views/gig_home_view.dart';
 import 'package:rounded_loading_button_plus/rounded_loading_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:dio/dio.dart' as dio;
 import '../data/repository/book_your_service/book_your_service_repository.dart';
 import '../globalWidgets/flutter_toast.dart';
+import '../helper/api_constants.dart';
 import '../helper/utils.dart';
 import '../model/response/autentication_response/autentication_response.dart';
+import '../model/response/book_service/file_store_model.dart';
 import '../model/response/common_models.dart';
 import '../view/main_screen.dart';
 
@@ -24,6 +30,7 @@ class OrderDetailsController extends GetxController {
 
   RxInt currentIndex = 0.obs;
   RxBool isAssigneesLoading = true.obs;
+  RxList<String> uploadedImageList = <String>[].obs;
 
   void onPageChanged(int index) {
     currentIndex.value = index;
@@ -36,8 +43,105 @@ class OrderDetailsController extends GetxController {
   bool isHelpDeskUser = false;
   bool isPGRAdmin = false;
   Employee? assignedStaff;
-  List<String> checkBoxOptions = [];
+  List<Map<String, String>> checkBoxOptions = [];
   List<String> selectedCheckBoxItems = [];
+  List<XFile>? images = [];
+
+  final _picker = ImagePicker();
+
+  Future getImageList() async {
+    final List<XFile> selectedImages = await _picker.pickMultiImage(limit: 2);
+    if (selectedImages.isNotEmpty &&
+        (selectedImages.length < 2 && images!.length < 2)) {
+      print('SelectedImageLength : ${selectedImages.length}');
+      print('ImageLength  : ${images!.length}');
+      images!.addAll(selectedImages);
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? accessToken = prefs.getString('access_token');
+      List<FileStoreModel> fileStoreIds = await uploadPickedImages(selectedImages, 'pgr', accessToken!);
+
+      if(fileStoreIds.isNotEmpty) {
+        uploadedImageList.addAll(fileStoreIds.map((file) => file.fileStoreId.toString()).toList());
+      }
+      else{
+        images?.clear();
+        Toast.showToast('Unable to upload file. Please try a different image');
+      }
+
+      update();
+    } else {
+      Toast.showToast('Please Select less than 1 Image');
+    }
+  }
+
+  Future<List<FileStoreModel>> uploadPickedImages(
+      List<XFile> xFiles,
+      String moduleName,
+      String authToken,
+      ) async {
+    final dioClient = dio.Dio();
+
+    final List<dio.MultipartFile> fileList = [];
+    for (final file in xFiles) {
+      final fileExists = await File(file.path).exists();
+      print("File: ${file.path}, exists? $fileExists");
+      if (!fileExists) {
+        print("Skipping missing file: ${file.path}");
+        continue;
+      }
+
+      final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+      final parts = mimeType.split('/');
+      final multipartFile = await dio.MultipartFile.fromFile(
+        file.path,
+        filename: file.name.replaceAll(' ', '_'),
+        contentType: MediaType(parts[0], parts[1]),
+      );
+      fileList.add(multipartFile);
+    }
+
+    if (fileList.isEmpty) {
+      print("No valid files to upload!");
+      return [];
+    }
+
+    final formData = dio.FormData.fromMap({
+      'file': fileList,
+      'tenantId': ApiConstants.tenantId,
+      'module': moduleName,
+    });
+
+    print("FormData fields: ${formData.fields}");
+    print("FormData files: ${formData.files.map((entry) => entry.value.filename).toList()}");
+
+    try {
+      final response = await dioClient.post(
+        "${ApiConstants.host}${ApiConstants.fileUpload}",
+        data: formData,
+        options: dio.Options(
+          headers: {
+            'auth-token': authToken,
+            // no manual content-type here
+          },
+        ),
+      );
+
+      print("Response status: ${response.statusCode}");
+      print("Response data: ${response.data}");
+
+      if (response.statusCode == 201 && response.data['files'] != null) {
+        return (response.data['files'] as List)
+            .map<FileStoreModel>((e) => FileStoreModel.fromJson(e))
+            .toList();
+      }
+    } catch (e, st) {
+      images?.clear();
+      Toast.showToast('Unable to upload file. Please try a different image');
+      print("Upload error: $e\n$st");
+    }
+
+    return [];
+  }
 
   void setItems(List<String> itemList) {
     items.value =
@@ -49,12 +153,18 @@ class OrderDetailsController extends GetxController {
     items.refresh();
   }
 
+  removeImageList(int val) {
+    images?.removeAt(val);
+    update();
+  }
+
   getCheckList() {
     checkBoxOptions = [
-      "Fence Broken",
-      "Filled with bushes",
-      "No parking inside",
-      "No Building inside"
+      {'key': 'fences_intact', 'name': 'Fences/Boundaries intact'},
+      {'key': 'free_from_encroachment', 'name': 'Free from enroachment'},
+      {'key': 'no_vehicles_parked', 'name': 'No vehicles parked'},
+      {'key': 'garbage_dumped', 'name': 'Garbage or waste dumped'},
+      {'key': 'overgrown_brushes', 'name': 'Are brushes/weeds overgrown inside or along the edges'},
     ];
     update();
   }
@@ -145,8 +255,8 @@ class OrderDetailsController extends GetxController {
             selectedAssignee != null &&
             order.service?.applicationStatus != "RESOLVED") ||
         (isHelpDeskUser && order.service?.applicationStatus != "RESOLVED")) {
-      if (isHelpDeskUser && order.service?.applicationStatus != "RESOLVED" && selectedCheckBoxItems.isEmpty) {
-        Toast.showToast('Please verify checklist items');
+      if (isHelpDeskUser && order.service?.applicationStatus != "RESOLVED" && (selectedCheckBoxItems.isEmpty || uploadedImageList.isEmpty)) {
+        Toast.showToast(selectedCheckBoxItems.isEmpty ? 'Please verify checklist items' : 'Please upload images for verification');
         btnController.reset();
       } else {
         try {
@@ -187,7 +297,16 @@ class OrderDetailsController extends GetxController {
             ? jsonEncode(
             {
               ...additionalDetailMap,
-              "checklist": selectedCheckBoxItems.join("|").toString()
+              "checklist": selectedCheckBoxItems.join("|").toString(),
+              if (uploadedImageList.isNotEmpty)
+                ...Map.fromEntries(
+                  uploadedImageList.asMap().entries.map(
+                        (entry) => MapEntry(
+                      'report_${entry.key + 1}',
+                      entry.value,
+                    ),
+                  ),
+                ),
             }
         )
             : jsonEncode({

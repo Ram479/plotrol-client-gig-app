@@ -42,6 +42,7 @@ class BookYourService extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print(tenantImage);
     return GetBuilder<BookYourServiceController>(
       initState: (_) {
         WidgetsBinding.instance.addPostFrameCallback((_) {

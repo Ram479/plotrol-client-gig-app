@@ -68,11 +68,19 @@ class GigHomeScreen extends StatelessWidget {
                         child: (controller.profileImage.value.isNotEmpty)
                             ? ClipOval(
                                 child: !controller.isTenantDetailLoading.value
-                                    ? Image.asset(
+                                    ? Image.network(
                                         fit: BoxFit.cover,
                                         width: 50,
                                         height: 50,
                                         ImageAssetsConst.sampleUserProfile,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.network(
+                                      ImageAssetsConst.sampleUserProfile,
+                                      width: 120,
+                                      height: 140,
+                                      fit: BoxFit.fill,
+                                    );
+                                  },
                                       )
                                     : Shimmer.fromColors(
                                         baseColor: Colors.grey[300]!,

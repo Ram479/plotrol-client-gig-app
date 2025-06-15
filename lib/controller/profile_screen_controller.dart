@@ -20,11 +20,13 @@ class ProfileScreenController extends GetxController {
     _authenticationController.authMode.value = 0;
     _authenticationController.logInStatus.value = false;
     _authenticationController.mobileController.clear();
+    _authenticationController.otpController.clear();
     _requesterLoginController.authMode.value = 0;
     _requesterLoginController.logInStatus.value = false;
     _requesterLoginController.mobileController.clear();
     _requesterLoginController.otpController.clear();
     _requesterLoginController.nameController.clear();
+    _requesterLoginController.passwordController.clear();
 
     Get.delete<BottomNavigationController>();
     Get.offAll(() => OnBoardPage());

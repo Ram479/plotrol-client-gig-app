@@ -7,6 +7,9 @@ class ConstUiStrings {
   static const String signInToContinue = 'Sign in to Continue';
   static const String logInToContinue = 'Log in to Continue';
 
+  static const String passwordInfo = 'Note:';
+  static const String passwordDescription = 'Password should contain';
+
   static const String newUserChooseAction = 'Welcome! Let’s Get You Signed In';
 
   static const String termsAndPrivacy = 'I agree to the Terms of Service & ';
@@ -40,8 +43,8 @@ class ConstUiStrings {
   static const String otpVerificationText = 'Please enter your 6 digit One-Time-Password';
 
   static const List<String> getIntroScreenText = [
-    "Precise Property Measuring",
-    "Landscaping and Outdoor Care",
+    // "Precise Property Measuring",
+    // "Landscaping and Outdoor Care",
     "Inspection and Reporting",
   ];
 

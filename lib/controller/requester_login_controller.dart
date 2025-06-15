@@ -43,6 +43,7 @@ class RequesterLoginController extends GetxController {
   RxBool isNewRequester = false.obs;
   final RxBool isPasswordVisible = false.obs;
   final RxBool isConfirmPasswordVisible = false.obs;
+  RxString password = ''.obs;
 
   final RoundedLoadingButtonController btnController =
   RoundedLoadingButtonController();
@@ -89,6 +90,12 @@ class RequesterLoginController extends GetxController {
   RxString lastName = ''.obs;
   RxString userProfileImage = ''.obs;
   RxString email = ''.obs;
+  bool hasUppercase(String input) => input.contains(RegExp(r'[A-Z]'));
+  bool hasLowercase(String input) => input.contains(RegExp(r'[a-z]'));
+  bool hasDigit(String input) => input.contains(RegExp(r'\d'));
+  bool hasSpecialChar(String input) => input.contains(RegExp(r'[@#$%]'));
+  bool hasNoWhitespace(String input) => !input.contains(RegExp(r'\s'));
+  bool hasValidLength(String input) => input.length >= 8 && input.length <= 15;
 
   @override
   void onInit() {
@@ -123,6 +130,7 @@ class RequesterLoginController extends GetxController {
 
   /// login screen validation using the mobile number and the Terms and conditions checkbox
   void loginScreenValidation(mobile, context) {
+    final passwordRegex = RegExp(r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%])(?=\S+$).{8,15}$');
     if (mobileController.text.isEmpty) {
       Toast.showToast('Please Enter the Mobile Number');
       btnController.reset();
@@ -138,6 +146,10 @@ class RequesterLoginController extends GetxController {
     }
     else if(passwordController.text.trim().isEmpty){
       Toast.showToast('Please enter the password for your account');
+      btnController.reset();
+    }
+    else if(!passwordRegex.hasMatch(passwordController.text)){
+      Toast.showToast('Password must be 8-15 chars, include upper, lower, digit, and @#\$%');
       btnController.reset();
     }
     else if(confirmPasswordController.text.trim().isEmpty ){

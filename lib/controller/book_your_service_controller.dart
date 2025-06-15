@@ -57,7 +57,7 @@ class BookYourServiceController extends GetxController {
 
   List<String> selectedCategoryNames = [];
 
-  List<String> checkBoxOptions = [];
+  List<Map<String, String>> checkBoxOptions = [];
   List<String> selectedCheckBoxItems = [];
 
   List<String> selectedCategoryId = [];
@@ -144,10 +144,11 @@ class BookYourServiceController extends GetxController {
   }
   getCheckList() {
     checkBoxOptions = [
-      "Fence Broken",
-      "Filled with bushes",
-      "No parking inside",
-      "No Building inside"
+      {'key': 'fences_intact', 'name': 'Fences/Boundaries intact'},
+      {'key': 'free_from_encroachment', 'name': 'Free from enroachment'},
+      {'key': 'no_vehicles_parked', 'name': 'No vehicles parked'},
+      {'key': 'garbage_dumped', 'name': 'Garbage or waste dumped'},
+      {'key': 'overgrown_brushes', 'name': 'Are brushes/weeds overgrown inside or along the edges'},
     ];
     update();
   }
@@ -243,7 +244,7 @@ class BookYourServiceController extends GetxController {
               pincode: household.address?.pincode,
               type: household.address?.type,
               locality: Locality(
-                code: "MICROPLAN_MO_16_KANO_STATE",
+                code: "MICROPLAN_MO",
               ),
               geoLocation: GeoLocation(
                 latitude: household.address?.latitude,
@@ -260,11 +261,11 @@ class BookYourServiceController extends GetxController {
         ));
     if((result?.serviceWrappers ?? []).isNotEmpty) {
       resetCategoryList();
-      Toast.showToast('Your Order Placed Successful');
+      Toast.showToast("Thank you for requesting our service. A local Plotrol representative will contact you soon. We appreciate your support in shaping thr future of secure land monitoring.");
       Get.offAll(() => HomeView(selectedIndex: 1));
     }
     else {
-      Toast.showToast('There is some issue in Placing Your order Please Try Again Later');
+      Toast.showToast('There is some issue in placing Your order Please try again later');
     }
   }
 }

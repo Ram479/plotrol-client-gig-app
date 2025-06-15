@@ -44,14 +44,18 @@ class ServiceWrapper {
   Service? service;
   Workflow? workflow;
   List<String>? imageUrls;
+  List<String>? reportUrls;
 
-  ServiceWrapper({this.service, this.workflow, this.imageUrls});
+  ServiceWrapper({this.service, this.workflow, this.imageUrls, this.reportUrls});
 
   ServiceWrapper.fromJson(Map<String, dynamic> json) {
     service = json['service'] != null ? Service.fromJson(json['service']) : null;
     workflow = json['workflow'] != null ? Workflow.fromJson(json['workflow']) : null;
     if (json['imageUrls'] != null) {
       imageUrls = List<String>.from(json['imageUrls']);
+    }
+    if (json['reportUrls'] != null) {
+      reportUrls = List<String>.from(json['reportUrls']);
     }
   }
 
@@ -61,6 +65,9 @@ class ServiceWrapper {
     data['workflow'] = workflow?.toJson();
     if (imageUrls != null) {
       data['imageUrls'] = imageUrls;
+    }
+    if (reportUrls != null) {
+      data['reportUrls'] = reportUrls;
     }
     return data;
   }

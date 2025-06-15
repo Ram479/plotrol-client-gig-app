@@ -223,9 +223,11 @@ class AllProperties extends StatelessWidget {
                                                     ),
                                                   ),
                                                   onPressed: () {
+                                                    print("Household");
+                                                    print(controller.getPropertiesDetails[index].imageUrls);
                                                     Get.to(
                                                         () => BookYourService(
-                                                              tenantImage: [ImageAssetsConst.sampleRoomPage],
+                                                              tenantImage: [controller.getPropertiesDetails[index].imageUrls?.firstOrNull ?? ImageAssetsConst.sampleRoomPage],
                                                               householdModel: controller.getPropertiesDetails[index],
                                                               address: AppUtils().formatAddress(controller.getPropertiesDetails[index].address),
                                                               contactNumber: controller

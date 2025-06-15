@@ -52,13 +52,13 @@ class OnBoardPage extends StatelessWidget {
                         allowImplicitScrolling: true,
                         itemBuilder: (BuildContext context, int index) {
                           List<String> lotties = [
-                            'assets/images/labour_lottie.json',
-                            'assets/images/grass_clean.json',
+                            // 'assets/images/labour_lottie.json',
+                            // 'assets/images/grass_clean.json',
                             'assets/images/relaz_lottie.json',
                           ];
                           return Lottie.asset(lotties[index]);
                         },
-                        itemCount: 3,  // Set the number of items to 3
+                        itemCount: 1,  // Set the number of items to 3
                         viewportFraction: 0.8,
                         scale: 0.9,
                         loop: false,
@@ -94,7 +94,7 @@ class OnBoardPage extends StatelessWidget {
                 Obx(() {
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(3, (index) {
+                    children: List.generate(1, (index) {
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 500),
                         margin: const EdgeInsets.symmetric(horizontal: 5),

@@ -9,6 +9,7 @@ import 'package:plotrol/controller/autentication_controller.dart';
 import 'package:plotrol/helper/const_assets_const.dart';
 import 'package:plotrol/helper/const_ui_strings.dart';
 import 'package:plotrol/view/privacy_and_policy_page.dart';
+import 'package:plotrol/widgets/password_validator.dart';
 import 'package:rounded_loading_button_plus/rounded_loading_button.dart';
 import 'package:sizer/sizer.dart';
 import '../controller/requester_login_controller.dart';
@@ -207,69 +208,6 @@ class RequesterSignup extends StatelessWidget {
                           SizedBox(
                             height: 1.h,
                           ),
-                          // Offstage(
-                          //   offstage: false,
-                          //   // offstage: authenticationController.showOTPField.value == false,
-                          //   child: AutofillGroup(
-                          //     child: Pinput(
-                          //       controller: controller.otpController,
-                          //         length: 6,
-                          //         autofocus: true,
-                          //         keyboardType: TextInputType.number,
-                          //         textInputAction: TextInputAction.next,
-                          //         defaultPinTheme: defaultPinTheme, // Default theme for all fields
-                          //         focusedPinTheme: focusedPinTheme, // Theme for the focused field
-                          //         submittedPinTheme: submittedPinTheme, // Theme for the submitted state
-                          //         pinputAutovalidateMode: PinputAutovalidateMode.onSubmit, // Validation behavior
-                          //         showCursor: true,
-                          //         androidSmsAutofillMethod: AndroidSmsAutofillMethod.smsRetrieverApi,
-                          //         onChanged: (text) async {
-                          //           },
-                          //         onCompleted: (text) {
-                          //           // if (text != controller.resendOtp.value) {
-                          //           //   controller.otpController.clear();
-                          //           //   logger.i('textonCompleted $text');
-                          //           //   logger.i('otpCompleted ${controller.resendOtp}');
-                          //           //   Toast.showToast('Please Enter Valid Otp');
-                          //           // }
-                          //           // else {
-                          //           //   bookYourServiceController.getCategories();
-                          //           // }
-                          //         }),
-                          //   ),
-                          // ),
-                          // SizedBox(
-                          //   height: 2.h,
-                          // ),
-                          // Offstage(
-                          //   offstage: authenticationController.showOTPField.value == false,
-                          //   child: Row(
-                          //     mainAxisAlignment: MainAxisAlignment.center,
-                          //     children: [
-                          //       const ReusableTextWidget(
-                          //         text: ConstUiStrings.didNtReceiveCode,
-                          //       ),
-                          //       OtpTimerButton(
-                          //         buttonType: ButtonType.text_button,
-                          //         controller: controller.otpTimerController,
-                          //         onPressed: () {
-                          //           controller.loginScreenValidation(controller.mobileController.text, context,);
-                          //         },
-                          //         radius: 30,
-                          //         text: const Text(
-                          //           ConstUiStrings.resendAgain,
-                          //           style: TextStyle(
-                          //               color: Colors.black,
-                          //               fontFamily: 'Raleway',
-                          //               fontSize: 11,
-                          //               fontWeight: FontWeight.bold
-                          //           ),
-                          //         ),
-                          //         duration: 60,
-                          //       ),
-                          //     ],
-                          //   ),
-                          // ),
                           Offstage(
                             offstage: false,
                             // offstage: authenticationController.showNameField.value == false,
@@ -296,6 +234,7 @@ class RequesterSignup extends StatelessWidget {
                                 return null; // valid
                               },
                               onChanged: (text) {
+                                controller.password.value = text;
                                 // if (text.length == 10) {
                                 //   FocusScope.of(context).unfocus();
                                 // }
@@ -400,6 +339,56 @@ class RequesterSignup extends StatelessWidget {
                               ),
                             ),
                           ),
+                          SizedBox(
+                            height: 1.h,
+                          ),
+                          Obx(() {
+                            final pwd = controller.password.value;
+                            return Card(
+                              color: Colors.black,
+                              elevation: 0,
+                              margin: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.info, color: Colors.white,),
+                                        SizedBox(
+                                          width: 1.h,
+                                        ),
+                                        const ReusableTextWidget(
+                                          text: ConstUiStrings.passwordInfo,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(
+                                      height: 1.h,
+                                    ),
+                                    const ReusableTextWidget(
+                                      text: ConstUiStrings.passwordDescription,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    buildPasswordRuleItem("◇ At least one digit", controller.hasDigit(pwd)),
+                                    buildPasswordRuleItem("◇ At least one lowercase letter", controller.hasLowercase(pwd)),
+                                    buildPasswordRuleItem("◇ At least one uppercase letter", controller.hasUppercase(pwd)),
+                                    buildPasswordRuleItem("◇ At least one special character (@, #, \$, %)", controller.hasSpecialChar(pwd)),
+                                    buildPasswordRuleItem("◇ No white spaces", controller.hasNoWhitespace(pwd)),
+                                    buildPasswordRuleItem("◇ Length between 8-15 characters", controller.hasValidLength(pwd)),
+                                  ],
+                                ),
+                              ),
+                            );
+                          })
+
                         ],
                       ),
                     ),

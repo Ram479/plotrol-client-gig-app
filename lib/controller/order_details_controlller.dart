@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:collection/collection.dart';
 import 'package:get/get.dart';
+import 'package:get/get_rx/get_rx.dart';
+import 'dart:math' as math;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:plotrol/data/repository/assignees/get_assignees_repo.dart';
 import 'package:plotrol/model/response/book_service/pgr_create_response.dart';
 import 'package:plotrol/model/response/employee_response/employee_search_response.dart';
@@ -31,6 +34,9 @@ class OrderDetailsController extends GetxController {
   RxInt currentIndex = 0.obs;
   RxBool isAssigneesLoading = true.obs;
   RxList<String> uploadedImageList = <String>[].obs;
+  RxBool unableToLocate = false.obs;                         // <— add
+  RxString  remarksCtrl = ''.obs;
+  final RxMap<String, String> imagePathToFileStoreId = <String, String>{}.obs;
 
   void onPageChanged(int index) {
     currentIndex.value = index;
@@ -49,30 +55,159 @@ class OrderDetailsController extends GetxController {
 
   final _picker = ImagePicker();
 
-  Future getImageList() async {
-    final List<XFile> selectedImages = await _picker.pickMultiImage(limit: 2);
-    if (selectedImages.isNotEmpty &&
-        (selectedImages.length < 2 && images!.length < 2)) {
-      print('SelectedImageLength : ${selectedImages.length}');
-      print('ImageLength  : ${images!.length}');
-      images!.addAll(selectedImages);
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? accessToken = prefs.getString('access_token');
-      List<FileStoreModel> fileStoreIds = await uploadPickedImages(selectedImages, 'pgr', accessToken!);
+  static const int _maxImages = 5;
 
-      if(fileStoreIds.isNotEmpty) {
-        uploadedImageList.addAll(fileStoreIds.map((file) => file.fileStoreId.toString()).toList());
+  bool _canAddMorePhotos() {
+    final current = images?.length ?? 0;
+    if (current >= _maxImages) {
+      Toast.showToast('You can upload up to $_maxImages images');
+      return false;
+    }
+    return true;
+  }
+
+  int _remainingSlots() => (_maxImages - (images?.length ?? 0)).clamp(0, _maxImages);
+
+
+// ===== ANDROID 13+ Photos permission (with legacy fallback) =====
+  Future<bool> _ensurePhotosPermission() async {
+    // On Android 13/14 this maps to READ_MEDIA_IMAGES and shows:
+    // "Allow all photos / Select photos / Don't allow"
+    final status = await Permission.photos.status;
+
+    if (status.isGranted || status.isLimited) return true;
+
+    if (status.isDenied) {
+      final req = await Permission.photos.request();
+      if (req.isGranted || req.isLimited) return true;
+
+      if (req.isPermanentlyDenied) {
+        Toast.showToast('Allow Photos access in Settings to continue');
+        await openAppSettings();
+      } else {
+        Toast.showToast('Photos permission denied');
       }
-      else{
-        images?.clear();
-        Toast.showToast('Unable to upload file. Please try a different image');
+      return false;
+    }
+
+    if (status.isPermanentlyDenied) {
+      Toast.showToast('Allow Photos access in Settings to continue');
+      await openAppSettings();
+      return false;
+    }
+
+    // If you also support API 32 and below, you can optionally fall back:
+    // final legacy = await Permission.storage.request();
+    // if (legacy.isGranted) return true;
+
+    return false;
+  }
+
+// ===== ANDROID Camera permission =====
+  Future<bool> _ensureCameraPermission() async {
+    final status = await Permission.camera.status;
+
+    if (status.isGranted) return true;
+
+    if (status.isDenied) {
+      final req = await Permission.camera.request();
+      if (req.isGranted) return true;
+
+      if (req.isPermanentlyDenied) {
+        Toast.showToast('Enable Camera permission in Settings');
+        await openAppSettings();
+      } else {
+        Toast.showToast('Camera permission denied');
+      }
+      return false;
+    }
+
+    if (status.isPermanentlyDenied) {
+      Toast.showToast('Enable Camera permission in Settings');
+      await openAppSettings();
+      return false;
+    }
+
+    return false;
+  }
+
+// ===== Pick multiple PHOTOS (system Photos permission) =====
+  Future<void> getImageList() async {
+    if (!await _ensurePhotosPermission()) return;
+
+    if (!_canAddMorePhotos()) return;
+
+    final remaining = _remainingSlots();
+    final picked = await _picker.pickMultiImage(limit: remaining);
+    if (picked.isEmpty) return;
+
+    // Defensive: in case platform returns > remaining
+    final toAdd = picked.take(remaining).toList();
+    if (toAdd.length < picked.length) {
+      Toast.showToast('Only $_maxImages photos allowed. Extra images were ignored.');
+    }
+
+    await _handlePickedFiles(toAdd);
+  }
+
+
+// ===== Pick single photo from CAMERA =====
+  Future<void> getImageFromCamera() async {
+    if (!await _ensureCameraPermission()) return;
+    if (!_canAddMorePhotos()) return;
+
+    final shot = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 90,
+    );
+    if (shot == null) return;
+
+    await _handlePickedFiles([shot]);
+  }
+
+
+// ===== Common uploader (keep your existing one if you already have it) =====
+
+  Future<void> _handlePickedFiles(List<XFile> picked) async {
+    images ??= [];
+    images!.addAll(picked); // optimistic UI
+
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('access_token');
+
+    final ids = await uploadPickedImages(picked, 'pgr', accessToken!);
+
+    if (ids.isNotEmpty) {
+      // Map each picked file to the returned id (best-effort if partial)
+      final int n = math.min(ids.length, picked.length);
+      for (var i = 0; i < n; i++) {
+        final id = ids[i].fileStoreId?.toString();
+        if (id != null) {
+          imagePathToFileStoreId[picked[i].path] = id;
+        }
+      }
+      // Keep your existing list of ids (use only those we actually mapped)
+      uploadedImageList.addAll(
+        ids.take(n).map((f) => f.fileStoreId.toString()),
+      );
+
+      // If some picks failed (partial success), roll back the failed ones
+      if (n < picked.length) {
+        final failed = picked.sublist(n);
+        images!.removeWhere((x) => failed.any((f) => f.path == x.path));
+        Toast.showToast('Some images failed to upload');
       }
 
       update();
     } else {
-      Toast.showToast('Please Select less than 1 Image');
+      // All failed -> rollback optimistic add
+      images!.removeWhere((x) => picked.any((p) => p.path == x.path));
+      Toast.showToast('Unable to upload file. Please try a different image');
+      update();
     }
   }
+
+
 
   Future<List<FileStoreModel>> uploadPickedImages(
       List<XFile> xFiles,
@@ -152,11 +287,38 @@ class OrderDetailsController extends GetxController {
     items[index]['isChecked'] = !items[index]['isChecked'];
     items.refresh();
   }
+  XFile? fileAtIndex(List<XFile>? images, int val) {
+    if (images == null || val < 0 || val >= images.length) {
+      Toast.showToast('Please try re-uploading images');
+      return null;
+    }
+    else {
+      return images[val];
+    }
+  }
 
-  removeImageList(int val) {
-    images?.removeAt(val);
+  void removeImageList(int index) {
+    final list = images;
+    if (list == null || index < 0 || index >= list.length) {
+      Toast.showToast('Please try re-uploading images');
+      return;
+    }
+
+    // Get the file we're removing
+    final XFile removedFile = list.removeAt(index);
+
+    // Remove matching fileStoreId if we have it
+    final String? id = imagePathToFileStoreId.remove(removedFile.path);
+    if (id != null) {
+      uploadedImageList.remove(id);
+    } else if (index < uploadedImageList.length) {
+      // Fallback: keep lists aligned by index
+      uploadedImageList.removeAt(index);
+    }
+
     update();
   }
+
 
   getCheckList() {
     checkBoxOptions = [
@@ -255,15 +417,23 @@ class OrderDetailsController extends GetxController {
             selectedAssignee != null &&
             order.service?.applicationStatus != "RESOLVED") ||
         (isHelpDeskUser && order.service?.applicationStatus != "RESOLVED")) {
-      if (isHelpDeskUser && order.service?.applicationStatus != "RESOLVED" && (selectedCheckBoxItems.isEmpty || uploadedImageList.isEmpty)) {
-        Toast.showToast(selectedCheckBoxItems.isEmpty ? 'Please verify checklist items' : 'Please upload images for verification');
+      final isUTL = unableToLocate.value;
+
+      // If NOT unable to locate, require checklist and images as before
+      if ((isHelpDeskUser && !isUTL) && (selectedCheckBoxItems.isEmpty || uploadedImageList.isEmpty)) {
+        Toast.showToast(selectedCheckBoxItems.isEmpty
+            ? 'Please verify checklist items'
+            : 'Please upload images for verification');
         btnController.reset();
+        return;
       } else {
         try {
+
           final Map<String, dynamic> additionalDetailMap =
           (order.service!.additionalDetail != null && order.service!.additionalDetail!.isNotEmpty)
               ? Map<String, dynamic>.from(jsonDecode(order.service!.additionalDetail.toString()))
               : {};
+          final bool isUTL = unableToLocate.value;
         AuditDetails auditDetails = AuditDetails(
           createdBy: order.service?.auditDetails?.createdBy,
           createdTime: order.service?.auditDetails?.createdTime,
@@ -297,7 +467,10 @@ class OrderDetailsController extends GetxController {
             ? jsonEncode(
             {
               ...additionalDetailMap,
-              "checklist": selectedCheckBoxItems.join("|").toString(),
+              if (uploadedImageList.isNotEmpty)
+                "checklist":  selectedCheckBoxItems.join("|").toString(),
+              "unableToLocateProperty": isUTL ,
+              "remarks": remarksCtrl.value ?? '',
               if (uploadedImageList.isNotEmpty)
                 ...Map.fromEntries(
                   uploadedImageList.asMap().entries.map(
@@ -310,7 +483,10 @@ class OrderDetailsController extends GetxController {
             }
         )
             : jsonEncode({
-          "checklist": selectedCheckBoxItems.join("|").toString()
+          if (uploadedImageList.isNotEmpty)
+            "checklist":  selectedCheckBoxItems.join("|").toString(),
+          "unableToLocateProperty": isUTL ,
+          "remarks": remarksCtrl.value ?? '',
 
         }) : order.service?.additionalDetail;
         workflow?.hrmsAssignes =
@@ -327,6 +503,7 @@ class OrderDetailsController extends GetxController {
           Toast.showToast(isPGRAdmin ? 'Booking has been assigned successfully' : "Task completed successfully");
           Get.offAll(() => GigHomeView(selectedIndex: 0));
         } else {
+          btnController.reset();
           Toast.showToast(
               'There is some issue in assigning the booking, Please Try Again Later');
         }
@@ -341,6 +518,7 @@ class OrderDetailsController extends GetxController {
       if ((isPGRAdmin &&
           selectedAssignee == null &&
           order.service?.applicationStatus == "PENDING_ASSIGNMENT")) {
+        btnController.reset();
         Toast.showToast('Please select whom you want to assign');
       } else {
         Get.offAll(() => isDistributor

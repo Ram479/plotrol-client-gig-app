@@ -14,6 +14,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as path;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:plotrol/controller/autentication_controller.dart';
 import 'package:plotrol/data/repository/add_household_member/add_household_member_repository.dart';
 import 'package:plotrol/data/repository/add_individual/add_individual_repository.dart';
@@ -115,30 +116,151 @@ class AddYourPropertiesController extends GetxController {
   List<XFile>? images = [];
 
   final _picker = ImagePicker();
+  // Add near the top of the controller
+  static const int kMaxPhotos = 5;
+
+  bool _canAddMorePhotos() {
+    final current = images?.length ?? 0;
+    if (current >= kMaxPhotos) {
+      Toast.showToast('You already uploaded $kMaxPhotos photos');
+      return false;
+    }
+    return true;
+  }
+
+  int _remainingSlots() => max(0, kMaxPhotos - (images?.length ?? 0));
+
+
+  Future<bool> _ensureGalleryPerms() async {
+    // Check current status first
+    final status = await Permission.photos.status;
+
+    if (status.isGranted || status.isLimited) {
+      // granted = full library; limited = user selected specific photos
+      return true;
+    }
+
+    if (status.isDenied) {
+      // This triggers the inbuilt Android popup ("Allow all / Select photos / Don't allow")
+      final req = await Permission.photos.request();
+      if (req.isGranted || req.isLimited) return true;
+
+      if (req.isPermanentlyDenied) {
+        // Only now suggest Settings
+        Toast.showToast('Allow Photos access in Settings to continue');
+        await openAppSettings();
+      } else {
+        Toast.showToast('Photos permission denied');
+      }
+      return false;
+    }
+
+    if (status.isPermanentlyDenied) {
+      Toast.showToast('Allow Photos access in Settings to continue');
+      await openAppSettings();
+      return false;
+    }
+
+    return false;
+  }
+  Future<bool> _ensureCameraPerms() async {
+    final status = await Permission.camera.request();
+    return status.isGranted;
+  }
+
+  Future<void> getImageFromGallery() async {
+    if (!await _ensureGalleryPerms()) {
+      Toast.showToast('Please allow Photos permission in Settings');
+      openAppSettings();
+      return;
+    }
+
+    if (!_canAddMorePhotos()) return;
+
+    final allowed = _remainingSlots();
+    // Respect remaining slots so we never exceed 5
+    final picked = await _picker.pickMultiImage(limit: allowed);
+    if (picked.isEmpty) return;
+
+    // This is already capped by `limit`, but keep defensive code:
+    final toAdd = picked.take(allowed).toList();
+    if (toAdd.length < picked.length) {
+      Toast.showToast('Only $kMaxPhotos photos allowed. Some were ignored.');
+    }
+
+    images!.addAll(toAdd);
+
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('access_token');
+
+    final ids = await uploadPickedImages(toAdd, 'pgr', accessToken!);
+    if (ids.isNotEmpty) {
+      uploadedImageList.addAll(ids.map((f) => f.fileStoreId.toString()));
+    } else {
+      images?.clear();
+      update();
+      Toast.showToast('Unable to upload file. Please try again later');
+    }
+    update();
+  }
+
+
+  Future<void> getImageFromCamera() async {
+    if (!await _ensureCameraPerms()) {
+      Toast.showToast('Please allow Camera permission in Settings');
+      openAppSettings();
+      return;
+    }
+
+    if (!_canAddMorePhotos()) return;
+
+    final x = await _picker.pickImage(source: ImageSource.camera, imageQuality: 90);
+    if (x == null) return;
+
+    images!.add(x);
+
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('access_token');
+
+    final ids = await uploadPickedImages([x], 'pgr', accessToken!);
+    if (ids.isNotEmpty) {
+      uploadedImageList.addAll(ids.map((f) => f.fileStoreId.toString()));
+    } else {
+      images?.clear();
+      Toast.showToast('Unable to upload file. Please try again later');
+      update();
+    }
+    update();
+  }
+
+
 
   Future getImageList() async {
-    final List<XFile> selectedImages = await _picker.pickMultiImage(limit: 1);
-    if (selectedImages.isNotEmpty &&
-        (selectedImages.length > 0 && selectedImages.length < 2 && images!.length < 2)) {
-      print('SelectedImageLength : ${selectedImages.length}');
-      print('ImageLength  : ${images!.length}');
-      images!.addAll(selectedImages);
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? accessToken = prefs.getString('access_token');
-      List<FileStoreModel> fileStoreIds = await uploadPickedImages(selectedImages, 'pgr', accessToken!);
+    if (!_canAddMorePhotos()) return;
 
-      if(fileStoreIds.isNotEmpty) {
-        uploadedImageList.addAll(fileStoreIds.map((file) => file.fileStoreId.toString()).toList());
-      }
-      else{
-        Toast.showToast('Unable to upload file. Please try again later');
-      }
+    final allowed = _remainingSlots();
+    // This legacy method was using limit:1 — keep behavior but still respect remaining
+    final List<XFile> selectedImages = await _picker.pickMultiImage(limit: min(1, allowed), imageQuality: 90);
 
-      update();
+    if (selectedImages.isEmpty) return;
+
+    images!.addAll(selectedImages);
+
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('access_token');
+
+    final fileStoreIds = await uploadPickedImages(selectedImages, 'pgr', accessToken!);
+    if (fileStoreIds.isNotEmpty) {
+      uploadedImageList.addAll(fileStoreIds.map((f) => f.fileStoreId.toString()));
     } else {
-      Toast.showToast('Please Select less than 4 Images');
+      images?.clear();
+      update();
+      Toast.showToast('Unable to upload file. Please try again later');
     }
+
+    update();
   }
+
 
   Future<List<FileStoreModel>> uploadPickedImages(
       List<XFile> xFiles,
@@ -200,6 +322,9 @@ class AddYourPropertiesController extends GetxController {
             .map<FileStoreModel>((e) => FileStoreModel.fromJson(e))
             .toList();
       }
+      else{
+        Toast.showToast(response.data['Errors'][0]['message']);
+      }
     } catch (e, st) {
       print("Upload error: $e\n$st");
     }
@@ -256,10 +381,16 @@ class AddYourPropertiesController extends GetxController {
   }
 
 
-  removeImageList(int val) {
-    images?.removeAt(val);
+  void removeImageList(int index) {
+    if (index >= 0 && index < (images?.length ?? 0)) {
+      images?.removeAt(index);
+    }
+    if (index >= 0 && index < uploadedImageList.length) {
+      uploadedImageList.removeAt(index);
+    }
     update();
   }
+
 
   // uploadImageAndSave() async {
   //   SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -401,29 +532,34 @@ class AddYourPropertiesController extends GetxController {
               memberCount: 1,
               tenantId: tenantId,
               additionalFields: AdditionalFields(
-                schema: 'Household',
-                version: 1,
-                fields: [
-                  if(notesController.text.trim().isNotEmpty)
-                    AdditionalFieldEntry(
-                      key: 'notes',
-                      value: notesController.text,
+              schema: 'Household',
+              version: 1,
+              fields: [
+                if (notesController.text.trim().isNotEmpty)
+                  AdditionalFieldEntry(
+                    key: 'notes',
+                    value: notesController.text,
+                  ),
+                if (mobileNumberController.text.trim().isNotEmpty)
+                  AdditionalFieldEntry(
+                    key: 'contactNo',
+                    value: mobileNumberController.text,
+                  ),
+                if (uploadedImageList.isNotEmpty)
+                  AdditionalFieldEntry(
+                    key: 'imageIds',                 // NEW: full list of IDs in one field
+                    value: jsonEncode(uploadedImageList),
+                  ),
+                if (uploadedImageList.isNotEmpty)
+                  ...uploadedImageList.asMap().entries.map(
+                        (entry) => AdditionalFieldEntry(
+                      key: 'image_${entry.key + 1}',
+                      value: entry.value,
                     ),
-                  if(mobileNumberController.text.trim().isNotEmpty)
-                    AdditionalFieldEntry(
-                      key: 'contactNo',
-                      value: mobileNumberController.text,
-                    ),
-                  if (uploadedImageList.isNotEmpty)
-                    ...uploadedImageList.asMap().entries.map(
-                          (entry) => AdditionalFieldEntry(
-                        key: 'image_${entry.key + 1}',
-                        value: entry.value,
-                      ),
-                    ),
-                ]
-              ),
-              rowVersion: 1,
+                  ),
+              ],
+            ),
+            rowVersion: 1,
               nonRecoverableError: false,
               auditDetails: auditDetails,
               clientAuditDetails: auditDetails,

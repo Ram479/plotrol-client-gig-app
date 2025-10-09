@@ -12,6 +12,7 @@ import 'package:plotrol/globalWidgets/flutter_toast.dart';
 import 'package:plotrol/helper/const_assets_const.dart';
 import 'package:plotrol/helper/utils.dart';
 import 'package:plotrol/model/response/employee_response/employee_search_response.dart';
+import 'package:plotrol/view/image_grid_screen.dart';
 import 'package:rounded_loading_button_plus/rounded_loading_button.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:timeline_tile/timeline_tile.dart';
@@ -21,6 +22,8 @@ import '../globalWidgets/dropdown_widget.dart';
 import '../globalWidgets/employee_table.dart';
 import '../globalWidgets/text_widget.dart';
 import '../model/response/book_service/pgr_create_response.dart';
+import '../widgets/thumbnail_collage.dart';
+import 'main_screen.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   final String address;
@@ -29,7 +32,7 @@ class OrderDetailScreen extends StatelessWidget {
   final String tenantName;
   final String tenantContactName;
   final List<String> tasks;
-  final List<String> propertyImage;
+  final List<String>? propertyImage;
   final List<String>? orderImages;
   final String type;
   final String orderID;
@@ -75,9 +78,11 @@ class OrderDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Map<String, dynamic> additionalDetailMap =
-    (order.service!.additionalDetail != null && order.service!.additionalDetail!.isNotEmpty)
-        ? Map<String, dynamic>.from(jsonDecode(order.service!.additionalDetail.toString()))
-        : {};
+        (order.service!.additionalDetail != null &&
+                order.service!.additionalDetail!.isNotEmpty)
+            ? Map<String, dynamic>.from(
+                jsonDecode(order.service!.additionalDetail.toString()))
+            : {};
     return GetBuilder<OrderDetailsController>(initState: (_) {
       orderDetailsController.getCheckList();
       orderDetailsController.getAssignees(order);
@@ -85,7 +90,6 @@ class OrderDetailScreen extends StatelessWidget {
         orderDetailsController.setItems(tasks);
       }
     }, builder: (controller) {
-
       return CustomScaffold(
         body: Scaffold(
           backgroundColor: Colors.white,
@@ -97,27 +101,16 @@ class OrderDetailScreen extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          body: Padding(
-            padding: EdgeInsets.all(10),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: 140,
-                    child: GestureDetector(
-                      onTap: () async {
-                        if(order.service?.address?.geoLocation?.latitude != null && order.service?.address?.geoLocation?.longitude != null) {
-                          await AppUtils().openMap(
-                              order.service?.address?.geoLocation?.latitude ??
-                                  0,
-                              order.service?.address?.geoLocation?.longitude ??
-                                  0);
-                        }
-                        else{
-                          Toast.showToast("Couldn't get coordinates. Please contact Admin.");
-                        }
-                      },
+          body: LayoutBuilder(builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.all(10),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      height: 140,
                       child: Card(
                         color: Colors.white,
                         shape: RoundedRectangleBorder(
@@ -129,31 +122,31 @@ class OrderDetailScreen extends StatelessWidget {
                             ),
                         child: Row(
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.only(left: 0),
-                              child: ClipRRect(
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(10.0),
-                                  bottomLeft: Radius.circular(10.0),
+                              SizedBox(
+                                width: 120,
+                                height: 140,
+                                child: InkWell(
+                                  onTap: () => Get.to(() => ImageGridScreen(
+                                        imageUrls: propertyImage ?? [],
+                                        title: 'Property Images',
+                                      )),
+                                  child: ClipRRect(
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(10),
+                                      bottomLeft: Radius.circular(10),
+                                    ),
+                                    child: ThumbCollage(
+                                      urls:
+                                          propertyImage ?? [], // safe: already checked isNotEmpty
+                                      height: 140,
+                                      width: 120, // 👈 finite width!
+                                      borderRadius:
+                                          0, // parent ClipRRect already rounds corners
+                                      spacing: 2,
+                                    ),
+                                  ),
                                 ),
-                                child: propertyImage.firstOrNull != null
-                                    ? Image.network(
-                                        propertyImage.firstOrNull ?? ImageAssetsConst.sampleRoomPage,
-                                        width: 120,
-                                        height: 140,
-                                        fit: BoxFit.fill,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Image.network(
-                                            ImageAssetsConst.sampleRoomPage,
-                                            width: 120,
-                                            height: 140,
-                                            fit: BoxFit.fill,
-                                          );
-                                        },
-                                      )
-                                    : SizedBox.shrink(),
                               ),
-                            ),
                             Expanded(
                               child: Padding(
                                 padding:
@@ -194,12 +187,45 @@ class OrderDetailScreen extends StatelessWidget {
                                           width: 5,
                                         ),
                                         Expanded(
-                                          child: SizedBox(
-                                            width: Get.width * 0.40,
-                                            child: ReusableTextWidget(
-                                              text: address,
-                                              fontSize: 15,
-                                              maxLines: 3,
+                                          child: GestureDetector(
+                                            onTap: () async {
+                                              if (order
+                                                          .service
+                                                          ?.address
+                                                          ?.geoLocation
+                                                          ?.latitude !=
+                                                      null &&
+                                                  order
+                                                          .service
+                                                          ?.address
+                                                          ?.geoLocation
+                                                          ?.longitude !=
+                                                      null) {
+                                                await AppUtils().openMap(
+                                                    order
+                                                            .service
+                                                            ?.address
+                                                            ?.geoLocation
+                                                            ?.latitude ??
+                                                        0,
+                                                    order
+                                                            .service
+                                                            ?.address
+                                                            ?.geoLocation
+                                                            ?.longitude ??
+                                                        0);
+                                              } else {
+                                                Toast.showToast(
+                                                    "Couldn't get coordinates. Please contact Admin.");
+                                              }
+                                            },
+                                            child: SizedBox(
+                                              width: Get.width * 0.40,
+                                              child: ReusableTextWidget(
+                                                text: address,
+                                                fontSize: 15,
+                                                maxLines: 3,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -245,432 +271,686 @@ class OrderDetailScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(
-                    height: 15,
-                  ),
-                  type == 'accepted'
-                      ? const SizedBox(
-                          height: 15,
-                        )
-                      : const SizedBox(),
-                  ReusableTextWidget(
-                    text: type == 'completed'
-                        ? 'Completed Tasks'
-                        : 'Task Details',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 20,
-                  ),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  type == 'completed'
-                      ? Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            // Background color of the container
-                            borderRadius: BorderRadius.circular(10.0),
-                            border: Border.all(
-                              color: Colors.grey, // Border color
-                              width: 1.0,
+                    const SizedBox(
+                      height: 15,
+                    ),
+                    ReusableTextWidget(
+                      text: type == 'completed'
+                          ? 'Completed Tasks'
+                          : 'Task Details',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                    ),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    type == 'completed'
+                        ? Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              // Background color of the container
+                              borderRadius: BorderRadius.circular(10.0),
+                              border: Border.all(
+                                color: Colors.grey, // Border color
+                                width: 1.0,
+                              ),
                             ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 10, right: 10),
-                            child: Column(
-                              children: List.generate(controller.items.length,
-                                  (index) {
-                                return CheckboxListTile(
-                                  checkColor: Colors.white,
-                                  activeColor: Colors.grey,
-                                  contentPadding: EdgeInsets.zero,
-                                  title: ReusableTextWidget(
-                                    text: controller.items[index]['name'],
-                                    fontSize: 16,
-                                  ),
-                                  value: true,
-                                  onChanged: (bool? value) {
-                                    // controller.toggleCheck(index);
-                                  },
-                                );
-                              }),
-                            ),
-                          ))
-                      : const SizedBox(),
-                  (type != 'completed')
-                      ? Wrap(
-                          spacing: 4.0, // Space between each child
-                          runSpacing: 6.0, // Space between each line
-                          children: tasks
-                              .map((category) => Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                    margin: const EdgeInsets.only(right: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.shade200,
-                                      borderRadius: BorderRadius.circular(5),
-                                    ),
-                                    child: ReusableTextWidget(
-                                      text: category,
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.only(left: 10, right: 10),
+                              child: Column(
+                                children: List.generate(controller.items.length,
+                                    (index) {
+                                  return CheckboxListTile(
+                                    checkColor: Colors.white,
+                                    activeColor: Colors.grey,
+                                    contentPadding: EdgeInsets.zero,
+                                    title: ReusableTextWidget(
+                                      text: controller.items[index]['name'],
                                       fontSize: 16,
                                     ),
-                                  ))
-                              .toList(),
-                        )
-                      : const SizedBox(),
-                  type == 'completed'
-                      ? const SizedBox(
-                          height: 15,
-                        )
-                      : const SizedBox(),
-                  // type == 'completed'
-                  //     ? const ReusableTextWidget(
-                  //         text: 'Staff Uploads',
-                  //         fontWeight: FontWeight.w700,
-                  //         fontSize: 20,
-                  //       )
-                  //     : const SizedBox(),
-                  type == 'completed'
-                      ? const SizedBox(
-                          height: 10,
-                        )
-                      : const SizedBox(),
-                  // type == 'completed'
-                  //     ? HorizontalImageListView(
-                  //         imageUrls: orderImages ?? [],
-                  //       )
-                  //     : const SizedBox(),
-                  const SizedBox(
-                    height: 15,
-                  ),
-                 controller.isPGRAdmin && (order.workflow?.action != "CREATE" && order.service?.applicationStatus != "RESOLVED")
-                      ? const ReusableTextWidget(
-                          text: 'Staff Details',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 20,
-                        )
-                      : const SizedBox(),
-                  controller.isPGRAdmin && (order.workflow?.action != "CREATE" && order.service?.applicationStatus != "RESOLVED")
-                      ? const SizedBox(
-                          height: 10,
-                        )
-                      : const SizedBox(),
-                  controller.isPGRAdmin && (order.workflow?.action != "CREATE" && order.service?.applicationStatus != "RESOLVED")
-                      ? Container(
-                          padding: const EdgeInsets.all(10.0),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10.0),
-                            border: Border.all(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 6.0,
-                                offset: Offset(0, 2),
+                                    value: true,
+                                    onChanged: (bool? value) {
+                                      // controller.toggleCheck(index);
+                                    },
+                                  );
+                                }),
                               ),
-                            ],
-                          ),
-                          child: controller.isAssigneesLoading.value
-                              ? _buildShimmerCard(context)
-                          : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.person, color: Colors.grey),
-                                  const SizedBox(width: 10.0),
-                                  ReusableTextWidget(
-                                    text: controller.assignedStaff?.user?.name ?? '',
-                                    fontSize: 16,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(
-                                height: 10,
-                              ),
-                              // Row(
-                              //   crossAxisAlignment: CrossAxisAlignment.start,
-                              //   children: [
-                              //     const Icon(Icons.location_on,
-                              //         color: Colors.grey),
-                              //     const SizedBox(width: 10.0),
-                              //     Expanded(
-                              //       child: ReusableTextWidget(
-                              //         text: staffLocation,
-                              //         fontSize: 16,
-                              //         maxLines: 4,
-                              //       ),
-                              //     ),
-                              //   ],
-                              // ),
-                              // const SizedBox(height: 10.0),
-                              Row(
-                                children: [
-                                  const Icon(Icons.phone, color: Colors.grey),
-                                  const SizedBox(width: 10.0),
-                                  ReusableTextWidget(
-                                    text: controller.assignedStaff?.user?.mobileNumber ?? '',
-                                    fontSize: 16,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10.0),
-                              Row(
-                                children: [
-                                  const Icon(Icons.date_range,
-                                      color: Colors.grey),
-                                  const SizedBox(width: 10.0),
-                                  ReusableTextWidget(
-                                    text: date,
-                                    fontSize: 16,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        )
-                      : const SizedBox(),
-                  controller.isPGRAdmin && (order.workflow?.action != "CREATE" || order.service?.applicationStatus != "RESOLVED")
-                      ? const SizedBox()
-                      : const SizedBox(
-                          height: 20,
-                        ),
-                  const ReusableTextWidget(
-                    text: 'Task Timeline',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 20,
-                  ),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  SizedBox(
-                    height: 120,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CustomTimelineTile(
-                          title: 'Created',
-                          icon: Icons.lock_clock,
-                          dateString: startDate,
-                          isFirst: true,
-                        ),
-                        CustomTimelineTile(
-                          title: 'Started',
-                          icon: Icons.hourglass_bottom_rounded,
-                          dateString: acceptedDate,
-                        ),
-                        CustomTimelineTile(
-                          title: 'Completed',
-                          icon: Icons.check_circle,
-                          dateString: completedDate,
-                          isLast: true,
-                        ),
-                      ],
+                            ))
+                        : const SizedBox(),
+                    (type != 'completed')
+                        ? Wrap(
+                            spacing: 4.0, // Space between each child
+                            runSpacing: 6.0, // Space between each line
+                            children: tasks
+                                .map((category) => Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      margin: const EdgeInsets.only(right: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade200,
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: ReusableTextWidget(
+                                        text: category,
+                                        fontSize: 16,
+                                      ),
+                                    ))
+                                .toList(),
+                          )
+                        : const SizedBox(),
+                    type == 'completed'
+                        ? const SizedBox(
+                            height: 15,
+                          )
+                        : const SizedBox(),
+                    // type == 'completed'
+                    //     ? const ReusableTextWidget(
+                    //         text: 'Staff Uploads',
+                    //         fontWeight: FontWeight.w700,
+                    //         fontSize: 20,
+                    //       )
+                    //     : const SizedBox(),
+                    type == 'completed'
+                        ? const SizedBox(
+                            height: 10,
+                          )
+                        : const SizedBox(),
+                    // type == 'completed'
+                    //     ? HorizontalImageListView(
+                    //         imageUrls: orderImages ?? [],
+                    //       )
+                    //     : const SizedBox(),
+                    const SizedBox(
+                      height: 15,
                     ),
-                  ),
-                  controller.isAssigneesLoading.value ? _buildShimmerCard(context) :
-                  order.service?.applicationStatus != "RESOLVED" && controller.isPGRAdmin  ? EmployeeTable(
-                    employees: controller.assignees ?? [],
-                    controller: controller,
-                  ) : SizedBox(),
-                  const SizedBox(height: 10),
-                  if(order.service?.applicationStatus != "RESOLVED" && controller.isHelpDeskUser)
-                    InkWell(
-                    onTap: () {
-                      controller.getImageList();
-                    },
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: DottedBorder(
-                            dashPattern: [6, 6],
-                            borderType: BorderType.RRect,
-                            radius: const Radius.circular(12),
-                            padding: const EdgeInsets.all(6),
-                            child: ClipRRect(
-                              borderRadius:
-                              const BorderRadius.all(Radius.circular(12)),
-                              child: Container(
-                                height: 180,
-                                width: Get.width,
-                                color: Colors.grey.withOpacity(0.5),
-                                child: (controller.images?.isEmpty ?? false)
-                                    ? const Column(
-                                  mainAxisAlignment:
-                                  MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.add,
-                                      size: 40,
-                                      color: Colors.white,
+                    controller.isPGRAdmin &&
+                            (order.workflow?.action != "CREATE" &&
+                                order.service?.applicationStatus != "RESOLVED")
+                        ? const ReusableTextWidget(
+                            text: 'Staff Details',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                          )
+                        : const SizedBox(),
+                    controller.isPGRAdmin &&
+                            (order.workflow?.action != "CREATE" &&
+                                order.service?.applicationStatus != "RESOLVED")
+                        ? const SizedBox(
+                            height: 10,
+                          )
+                        : const SizedBox(),
+                    controller.isPGRAdmin &&
+                            (order.workflow?.action != "CREATE" &&
+                                order.service?.applicationStatus != "RESOLVED")
+                        ? Container(
+                            padding: const EdgeInsets.all(10.0),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10.0),
+                              border: Border.all(
+                                color: Colors.grey,
+                                width: 1.0,
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 6.0,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: controller.isAssigneesLoading.value
+                                ? _buildShimmerCard(context)
+                                : Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.person,
+                                              color: Colors.grey),
+                                          const SizedBox(width: 10.0),
+                                          ReusableTextWidget(
+                                            text: controller.assignedStaff?.user
+                                                    ?.name ??
+                                                '',
+                                            fontSize: 16,
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(
+                                        height: 10,
+                                      ),
+                                      // Row(
+                                      //   crossAxisAlignment: CrossAxisAlignment.start,
+                                      //   children: [
+                                      //     const Icon(Icons.location_on,
+                                      //         color: Colors.grey),
+                                      //     const SizedBox(width: 10.0),
+                                      //     Expanded(
+                                      //       child: ReusableTextWidget(
+                                      //         text: staffLocation,
+                                      //         fontSize: 16,
+                                      //         maxLines: 4,
+                                      //       ),
+                                      //     ),
+                                      //   ],
+                                      // ),
+                                      // const SizedBox(height: 10.0),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.phone,
+                                              color: Colors.grey),
+                                          const SizedBox(width: 10.0),
+                                          ReusableTextWidget(
+                                            text: controller.assignedStaff?.user
+                                                    ?.mobileNumber ??
+                                                '',
+                                            fontSize: 16,
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10.0),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.date_range,
+                                              color: Colors.grey),
+                                          const SizedBox(width: 10.0),
+                                          ReusableTextWidget(
+                                            text: date,
+                                            fontSize: 16,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                          )
+                        : const SizedBox(),
+                    controller.isPGRAdmin &&
+                            (order.workflow?.action != "CREATE" ||
+                                order.service?.applicationStatus != "RESOLVED")
+                        ? const SizedBox()
+                        : const SizedBox(
+                            height: 20,
+                          ),
+                    const ReusableTextWidget(
+                      text: 'Task Timeline',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                    ),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    SizedBox(
+                      height: 120,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CustomTimelineTile(
+                            title: 'Created',
+                            icon: Icons.lock_clock,
+                            dateString: startDate,
+                            isFirst: true,
+                          ),
+                          CustomTimelineTile(
+                            title: 'Started',
+                            icon: Icons.hourglass_bottom_rounded,
+                            dateString: acceptedDate,
+                          ),
+                          CustomTimelineTile(
+                            title: 'Completed',
+                            icon: Icons.check_circle,
+                            dateString: completedDate,
+                            isLast: true,
+                          ),
+                        ],
+                      ),
+                    ),
+                    controller.isAssigneesLoading.value
+                        ? _buildShimmerCard(context)
+                        : order.service?.applicationStatus != "RESOLVED" &&
+                                controller.isPGRAdmin
+                            ? EmployeeTable(
+                                employees: controller.assignees ?? [],
+                                controller: controller,
+                              )
+                            : SizedBox(),
+                    const SizedBox(height: 10),
+                    if (order.service?.applicationStatus != "RESOLVED" &&
+                        controller.isHelpDeskUser) ...[
+                      const SizedBox(height: 10),
+                      const ReusableTextWidget(
+                        text: 'Are you able to locate the property?',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: RadioListTile<bool>(
+                              dense: true,
+                              activeColor: Colors.red,
+                              title: const Text(
+                                'No',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 16,
+                                  color: Colors.red,
+                                ),
+                              ),
+                              value: true,
+                              groupValue: controller.unableToLocate.value,
+                              onChanged: (v) {
+                                controller.unableToLocate.value = v ?? false;
+                                // Optional: clear selections/images when switching to Yes
+                                if (controller.unableToLocate.value) {
+                                  controller.selectedCheckBoxItems.clear();
+                                  controller.images?.clear();
+                                }
+                                controller.update();
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            child: RadioListTile<bool>(
+                              dense: true,
+                              activeColor: Colors.green,
+                              title: const Text(
+                                'Yes',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 16,
+                                  color: Colors.green,
+                                ),
+                              ),
+                              value: false,
+                              groupValue: controller.unableToLocate.value,
+                              onChanged: (v) {
+                                controller.unableToLocate.value = v ?? false;
+                                controller.update();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (order.service?.applicationStatus == "RESOLVED") ...[
+                      const SizedBox(height: 10),
+                      const ReusableTextWidget(
+                        text: 'Are you able to locate the property ?',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                      ),
+                      Builder(
+                        builder: (_) {
+                          final dynamic _utlRaw =
+                              additionalDetailMap['unableToLocateProperty'];
+                          final bool _utlValue = (_utlRaw is bool)
+                              ? _utlRaw
+                              : (_utlRaw is String
+                                  ? _utlRaw.toLowerCase() == 'true'
+                                  : false);
+
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: RadioListTile<bool>(
+                                  dense: true,
+                                  activeColor: Colors.red,
+                                  title: const Text(
+                                    'No',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 16,
+                                      color: Colors.red,
                                     ),
-                                    SizedBox(height: 8),
-                                    ReusableTextWidget(
-                                      text: 'Upload Image',
-                                      fontSize: 18,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                    )
-                                  ],
-                                )
-                                    : ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: controller.images!.length,
-                                  itemBuilder: (context, index) {
-                                    final XFile image =
-                                    controller.images![index];
-                                    return Container(
-                                      margin: const EdgeInsets.symmetric(
-                                          horizontal:
-                                          5.0), // Add margin for spacing
-                                      child: Stack(children: [
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                              8.0), // Add rounded corners (optional)
-                                          child: Image.file(
-                                            File(image.path),
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error,
-                                                stackTrace) {
-                                              return const Center(
-                                                child: Icon(
-                                                  Icons.error,
-                                                  color: Colors.red,
-                                                ),
+                                  ),
+                                  value: true,
+                                  groupValue: _utlValue,
+                                  onChanged: null, // disabled
+                                ),
+                              ),
+                              Expanded(
+                                child: RadioListTile<bool>(
+                                  activeColor: Colors.green,
+                                  dense: true,
+                                  title: const Text(
+                                    'Yes',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 16,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                  value: false,
+                                  groupValue: _utlValue,
+                                  onChanged: null, // disabled
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                    if (order.service?.applicationStatus != "RESOLVED" &&
+                        controller.isHelpDeskUser &&
+                        !controller.unableToLocate.value)
+                      InkWell(
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            builder: (_) => SafeArea(
+                              child: Wrap(children: [
+                                ListTile(
+                                  leading: const Icon(Icons.photo_camera),
+                                  title: const Text('Camera'),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    controller.getImageFromCamera();
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(Icons.photo_library),
+                                  title: const Text('Gallery'),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    controller.getImageList();
+                                  },
+                                ),
+                              ]),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: DottedBorder(
+                                dashPattern: [6, 6],
+                                borderType: BorderType.RRect,
+                                radius: const Radius.circular(12),
+                                padding: const EdgeInsets.all(6),
+                                child: ClipRRect(
+                                  borderRadius: const BorderRadius.all(
+                                      Radius.circular(12)),
+                                  child: Container(
+                                    height: 180,
+                                    width: Get.width,
+                                    color: Colors.grey.withOpacity(0.5),
+                                    child: (controller.images?.isEmpty ?? false)
+                                        ? const Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.add,
+                                                size: 40,
+                                                color: Colors.white,
+                                              ),
+                                              SizedBox(height: 8),
+                                              ReusableTextWidget(
+                                                text: 'Upload Images',
+                                                fontSize: 18,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                              )
+                                            ],
+                                          )
+                                        : ListView.builder(
+                                            scrollDirection: Axis.horizontal,
+                                            itemCount:
+                                                controller.images!.length,
+                                            itemBuilder: (context, index) {
+                                              final XFile image =
+                                                  controller.images![index];
+                                              return Container(
+                                                margin: const EdgeInsets
+                                                    .symmetric(
+                                                    horizontal:
+                                                        5.0), // Add margin for spacing
+                                                child: Stack(children: [
+                                                  ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8.0), // Add rounded corners (optional)
+                                                    child: Image.file(
+                                                      File(image.path),
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder: (context,
+                                                          error, stackTrace) {
+                                                        return const Center(
+                                                          child: Icon(
+                                                            Icons.error,
+                                                            color: Colors.red,
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
+                                                  ),
+                                                  Positioned(
+                                                    top:
+                                                        -2, // Adjust position as needed
+                                                    right:
+                                                        -2, // Adjust position as needed
+                                                    child: IconButton(
+                                                      icon: const Icon(
+                                                          Icons.cancel,
+                                                          color: Colors.red),
+                                                      onPressed: () {
+                                                        controller
+                                                            .removeImageList(
+                                                                index);
+                                                      },
+                                                    ),
+                                                  ),
+                                                ]),
                                               );
                                             },
                                           ),
-                                        ),
-                                        Positioned(
-                                          top:
-                                          -2, // Adjust position as needed
-                                          right:
-                                          -2, // Adjust position as needed
-                                          child: IconButton(
-                                            icon: const Icon(Icons.cancel,
-                                                color: Colors.white),
-                                            onPressed: () {
-                                              controller
-                                                  .removeImageList(index);
-                                            },
-                                          ),
-                                        ),
-                                      ]),
-                                    );
-                                  },
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  if(order.service?.applicationStatus == "RESOLVED" )
-                    Column(
-                      children: [
-                        const ReusableTextWidget(
-                          text: 'Attached Evidence',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 20,
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 0),
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(10.0),
-                              bottomLeft: Radius.circular(10.0),
-                            ),
-                            child: (order.reportUrls ?? []).isNotEmpty
-                                ? Image.network(
-                              order.reportUrls?.firstOrNull ?? ImageAssetsConst.sampleRoomPage,
+                      ),
+                    if (order.service?.applicationStatus == "RESOLVED" &&
+                        !controller.unableToLocate.value)
+                      Builder(
+                        builder: (context) {
+                          final urls = (order.reportUrls ?? const <String>[])
+                              .where((e) => (e).toString().trim().isNotEmpty)
+                              .cast<String>()
+                              .toList();
+
+                          if (urls.isEmpty) return const SizedBox.shrink();
+
+                          return InkWell(
+                            onTap: () {
+                              // Keep history so back button returns to this screen
+                              Get.to(() => ImageGridScreen(
+                                    imageUrls: urls,
+                                    title: 'Attached Evidence',
+                                  ));
+                            },
+                            child: Container(
                               width: 120,
                               height: 140,
-                              fit: BoxFit.fill,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.network(
-                                  ImageAssetsConst.sampleRoomPage,
-                                  width: 120,
-                                  height: 140,
-                                  fit: BoxFit.fill,
-                                );
-                              },
-                            )
-                                : SizedBox.shrink(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  const SizedBox(
-                    height: 25,
-                  ),
-                  if(order.service?.applicationStatus != "RESOLVED" && controller.isHelpDeskUser)
-                    ListView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: controller.checkBoxOptions.length,
-                    itemBuilder: (context, index) {
-                      Map<String, String>? option = controller.checkBoxOptions[index];
-                      bool isChecked = controller.selectedCheckBoxItems.contains(option["key"]);
-
-                      return CheckboxListTile(
-                        title: Text(option["name"].toString()),
-                        value: isChecked,
-                        onChanged: (bool? value) {
-                          print("Checking the option:");
-                          print(value);
-                          if (value == true) {
-                            controller.selectedCheckBoxItems.add(option["key"].toString());
-                          } else {
-                            controller.selectedCheckBoxItems.remove(option["key"].toString());
-                          }
-                          controller.update();
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: Colors.grey.shade300, width: 0.8),
+                              ),
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.photo_library_sharp,
+                                        size: 40, color: Colors.black),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Attached Images',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${urls.length} file${urls.length == 1 ? '' : 's'}',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade700),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
                         },
-                        activeColor: Colors.black,
-                        controlAffinity: ListTileControlAffinity.trailing,
-                      );
-                    },
-                  ),
-                  if(order.service?.applicationStatus == "RESOLVED" )
-                    ListView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      itemCount: additionalDetailMap['checklist'] != null ? additionalDetailMap['checklist'].toString().split("|").length : 0,
-                      itemBuilder: (context, index) {
-                        String option = additionalDetailMap['checklist'].toString().split("|").elementAt(index);
-                        String? displayName = controller.checkBoxOptions
-                            .firstWhere(
-                              (item) => item['key'] == option,
-                          orElse: () => {'name': option}, // Fallback to key if not found
-                        )['name'];
-                        bool isChecked = true;
+                      ),
 
-                        return additionalDetailMap['checklist'] != null ? CheckboxListTile(
-                          title: Text(displayName.toString()),
-                          value: isChecked,
-                          onChanged: null,
-                          activeColor: Colors.black,
-                          controlAffinity: ListTileControlAffinity.trailing,
-                        ) : SizedBox();
-                      },
-                    )
-                  // ReusableDropdown<Employee>(
-                  //   items: controller.assignees ?? [],
-                  //   selectedItem: controller.selectedAssignee,
-                  //   itemLabelBuilder: (item) => '${item.user?.name} - ${item.user?.mobileNumber}',
-                  //   hint: 'Whom to Assign ? ',
-                  //   onChanged: (value) {
-                  //     controller.selectAssignee(value);
-                  //   },
-                  // ),
-                ],
+                    const SizedBox(
+                      height: 25,
+                    ),
+                    if (order.service?.applicationStatus != "RESOLVED" &&
+                        controller.isHelpDeskUser &&
+                        !controller.unableToLocate.value)
+                      ListView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount: controller.checkBoxOptions.length,
+                        itemBuilder: (context, index) {
+                          Map<String, String>? option =
+                              controller.checkBoxOptions[index];
+                          bool isChecked = controller.selectedCheckBoxItems
+                              .contains(option["key"]);
+
+                          return CheckboxListTile(
+                            title: Text(option["name"].toString()),
+                            value: isChecked,
+                            onChanged: (bool? value) {
+                              print("Checking the option:");
+                              print(value);
+                              if (value == true) {
+                                controller.selectedCheckBoxItems
+                                    .add(option["key"].toString());
+                              } else {
+                                controller.selectedCheckBoxItems
+                                    .remove(option["key"].toString());
+                              }
+                              controller.update();
+                            },
+                            activeColor: Colors.black,
+                            controlAffinity: ListTileControlAffinity.trailing,
+                          );
+                        },
+                      ),
+                    if (order.service?.applicationStatus == "RESOLVED" &&
+                        !controller.unableToLocate.value)
+                      ListView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount: additionalDetailMap['checklist'] != null
+                            ? additionalDetailMap['checklist']
+                                .toString()
+                                .split("|")
+                                .length
+                            : 0,
+                        itemBuilder: (context, index) {
+                          String option = additionalDetailMap['checklist']
+                              .toString()
+                              .split("|")
+                              .elementAt(index);
+                          String? displayName =
+                              controller.checkBoxOptions.firstWhere(
+                            (item) => item['key'] == option,
+                            orElse: () => {
+                              'name': option
+                            }, // Fallback to key if not found
+                          )['name'];
+                          bool isChecked = true;
+
+                          return additionalDetailMap['checklist'] != null
+                              ? CheckboxListTile(
+                                  title: Text(displayName.toString()),
+                                  value: isChecked,
+                                  onChanged: null,
+                                  activeColor: Colors.black,
+                                  controlAffinity:
+                                      ListTileControlAffinity.trailing,
+                                )
+                              : SizedBox();
+                        },
+                      ),
+                    if (order.service?.applicationStatus != "RESOLVED" &&
+                        controller.isHelpDeskUser) ...[
+                      const SizedBox(height: 16),
+                      const ReusableTextWidget(
+                        text: 'Remarks',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        initialValue: controller.remarksCtrl.value,
+                        // controller: controller.remarksCtrl,
+                        onChanged: (v) {
+                          controller.remarksCtrl.value = v;
+                          // no controller.update() needed unless you show it elsewhere
+                        },
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          hintText: 'Enter remarks',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
+                    if (order.service?.applicationStatus == "RESOLVED" &&
+                        additionalDetailMap['remarks']
+                            .toString()
+                            .isNotEmpty) ...[
+                      TextFormField(
+                        initialValue: additionalDetailMap['remarks'] ??
+                            controller.remarksCtrl.value,
+                        readOnly: true,
+                        enabled:
+                            false, // disables interaction & applies disabled theme
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          hintText: 'Enter remarks',
+                          border: OutlineInputBorder(), // default border
+                          disabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Colors.grey, // grey border when disabled
+                              width: 1.0,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: Color(
+                              0xFFF5F5F5), // light grey background for disabled look
+                        ),
+                        style: const TextStyle(
+                          color: Colors.grey, // grey text for disabled state
+                        ),
+                      ),
+                    ]
+                    // ReusableDropdown<Employee>(
+                    //   items: controller.assignees ?? [],
+                    //   selectedItem: controller.selectedAssignee,
+                    //   itemLabelBuilder: (item) => '${item.user?.name} - ${item.user?.mobileNumber}',
+                    //   hint: 'Whom to Assign ? ',
+                    //   onChanged: (value) {
+                    //     controller.selectAssignee(value);
+                    //   },
+                    // ),
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          }),
           bottomNavigationBar: SizedBox(
             child: Padding(
               padding: const EdgeInsets.only(left: 10, right: 10, bottom: 10),
@@ -682,8 +962,14 @@ class OrderDetailScreen extends StatelessWidget {
                 },
                 borderRadius: 10,
                 controller: controller.btnController,
-                child:   ReusableTextWidget(
-                  text: controller.isPGRAdmin && order.service?.applicationStatus != "RESOLVED"? 'Assign' : controller.isHelpDeskUser && order.service?.applicationStatus != "RESOLVED" ? 'Submit the Report' : 'Back',
+                child: ReusableTextWidget(
+                  text: controller.isPGRAdmin &&
+                          order.service?.applicationStatus != "RESOLVED"
+                      ? 'Assign'
+                      : controller.isHelpDeskUser &&
+                              order.service?.applicationStatus != "RESOLVED"
+                          ? 'Submit the Report'
+                          : 'Back',
                   color: Colors.white,
                   fontSize: 16,
                 ),
@@ -781,6 +1067,37 @@ class HorizontalImageListView extends StatelessWidget {
               child: Image.network(
                 imageUrls[index],
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Image.network(
+                    ImageAssetsConst.sampleUserProfile,
+                    width: 120,
+                    height: 140,
+                    fit: BoxFit.fill,
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+
+                  final total = loadingProgress.expectedTotalBytes;
+                  final loaded = loadingProgress.cumulativeBytesLoaded;
+                  final progress = total != null ? loaded / total : null;
+
+                  return SizedBox(
+                    height: 140,
+                    width: 120,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(value: progress),
+                          const SizedBox(height: 8),
+                          if (progress != null)
+                            Text('${(progress * 100).toStringAsFixed(0)}%'),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           );

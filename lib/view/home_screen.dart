@@ -25,6 +25,7 @@ import '../helper/const_assets_const.dart';
 import '../model/response/autentication_response/autentication_response.dart';
 import '../model/response/book_service/pgr_create_response.dart';
 import '../model/response/orders/get_orders_response.dart';
+import '../widgets/thumbnail_collage.dart';
 import 'all_properties_dart.dart';
 import 'book_your_service.dart';
 import 'order_status_screen.dart';
@@ -62,22 +63,38 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Sizer(
       builder: (context, orientation, deviceType) {
-        return GetBuilder<HomeScreenController>(initState: (_) async {
-          SharedPreferences prefs = await SharedPreferences.getInstance();
-          if(prefs.getString('access_token') == null) {
-            Get.to(() => LoginScreen());
-          }
-          String? userInfoString = prefs.getString('userInfo');
-          UserRequest? userRequest= UserRequest.fromJson(jsonDecode(userInfoString!)) ;
-          controller.getDetails();
-          controller.isPropertyLoading.value = AppUtils().checkIsHousehold(userRequest.roles ?? []) && !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []) ? true : false;
-          bookYourServiceController.isCategoryLoading.value = AppUtils().checkIsHousehold(userRequest.roles ?? []) && !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []) ? true : false;
-          controller.getTenantApiFunction();
-          if(AppUtils().checkIsHousehold(userRequest.roles ?? []) && !AppUtils().checkIsPGRAdmin(userRequest.roles ?? [])){
-            controller.getPropertiesApiFunction();
-            bookYourServiceController.getCategories();
-          }
-        }, builder: (controller) {
+        return GetBuilder<HomeScreenController>(
+            initState: (_) async {
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                final prefs = await SharedPreferences.getInstance();
+
+                if (prefs.getString('access_token') == null) {
+                  // Navigation during build can also trigger the same error
+                  Get.offAll(() => LoginScreen());
+                  return;
+                }
+
+                final userInfoString = prefs.getString('userInfo');
+                final userRequest = UserRequest.fromJson(jsonDecode(userInfoString!));
+
+                controller.getDetails();
+                controller.isPropertyLoading.value =
+                    AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
+                        !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []);
+
+                bookYourServiceController.isCategoryLoading.value =
+                    AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
+                        !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []);
+
+                controller.getTenantApiFunction();
+
+                if (AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
+                    !AppUtils().checkIsPGRAdmin(userRequest.roles ?? [])) {
+                  controller.getPropertiesApiFunction();
+                  bookYourServiceController.getCategories();
+                }
+              });
+            }, builder: (controller) {
           return WillPopScope(
             onWillPop: () => _willPopCallback(),
             child: SafeArea(
@@ -102,6 +119,37 @@ class HomeScreen extends StatelessWidget {
                                           width: 50,
                                           height: 50,
                                           controller.tenantProfileImage.value,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Image.network(
+                                        ImageAssetsConst.sampleRoomPage,
+                                        width: 120,
+                                        height: 140,
+                                        fit: BoxFit.fill,
+                                      );
+                                    },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+
+                                      final total = loadingProgress.expectedTotalBytes;
+                                      final loaded = loadingProgress.cumulativeBytesLoaded;
+                                      final progress = total != null ? loaded / total : null;
+
+                                      return SizedBox(
+                                        height: 140,
+                                        width: 120,
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              CircularProgressIndicator(value: progress),
+                                              const SizedBox(height: 8),
+                                              if (progress != null)
+                                                Text('${(progress * 100).toStringAsFixed(0)}%'),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
                                         )
                                       : Shimmer.fromColors(
                                           baseColor: Colors.grey[300]!,
@@ -279,9 +327,9 @@ class PropertyWidget extends StatelessWidget {
                                           onTap: () {
                                             Get.to(
                                                 () => PropertiesDetailsScreen(
-                                                      propertyImage: [controller
+                                                      propertyImage: controller
                                                           .getPropertiesDetails[
-                                                      index].imageUrls?.first ?? ImageAssetsConst.sampleRoomPage],
+                                                      index].imageUrls,
                                                       address: AppUtils().formatAddress(controller.getPropertiesDetails[index].address),
                                                       contactNumber: controller
                                                           .getPropertiesDetails[
@@ -290,41 +338,15 @@ class PropertyWidget extends StatelessWidget {
                                                           '',
                                                     ));
                                           },
-                                          child: (controller
-                                              .getPropertiesDetails[
-                                          index].imageUrls ?? []).isNotEmpty ? Image.network(
-                                              height: 100,
-                                              width: Get.width,
-                                              fit: BoxFit.fill,
-                                            controller
+                                          child: ThumbCollage(
+                                            urls: controller
                                                 .getPropertiesDetails[
-                                            index].imageUrls?.first ?? ImageAssetsConst.sampleRoomPage,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return Image.network(
-                                                ImageAssetsConst.sampleRoomPage,
-                                                width: 120,
-                                                height: 140,
-                                                fit: BoxFit.fill,
-                                              );
-                                            },
-                                              // '${controller.getPropertiesDetails[index].tenantimage?.first}'
-                                          ): Image.network(
+                                            index].imageUrls ?? [],
                                             height: 100,
-                                            width: Get.width,
-                                            fit: BoxFit.fill,
-                                            controller
-                                                .getPropertiesDetails[
-                                            index].imageUrls?.first ?? ImageAssetsConst.sampleRoomPage,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return Image.network(
-                                                ImageAssetsConst.sampleRoomPage,
-                                                width: 120,
-                                                height: 140,
-                                                fit: BoxFit.fill,
-                                              );
-                                            },
-                                            // '${controller.getPropertiesDetails[index].tenantimage?.first}'
-                                          ),
+                                            width: double.infinity, // or the card’s width
+                                            borderRadius: 10,
+                                            spacing: 2,
+                                          ) ,
                                         ),
                                   //     :
                                   // const SizedBox(),
@@ -381,9 +403,9 @@ class PropertyWidget extends StatelessWidget {
                                           onPressed: () {
                                             Get.to(() => BookYourService(
                                                   householdModel: controller.getPropertiesDetails[index],
-                                                  tenantImage: [controller
+                                                  tenantImage: controller
                                                       .getPropertiesDetails[
-                                                  index].imageUrls?.first ?? ImageAssetsConst.sampleRoomPage],
+                                                  index].imageUrls,
                                                   address: AppUtils().formatAddress(controller.getPropertiesDetails[index].address),
                                                   contactNumber: controller
                                                           .getPropertiesDetails[
@@ -603,8 +625,10 @@ class OnGoingTask extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<HomeScreenController>(
       initState: (_) {
-        homeScreenController.isOrderLoading.value = true;
-        homeScreenController.getOrdersApiFunction();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          homeScreenController.updateLoadingState();   // will call update(), but now it's safe
+          homeScreenController.getOrdersApiFunction(); // can call update() when done
+        });
       },
       builder: (controller) {
         if (homeScreenController.getOrderDetails.isEmpty ) {
@@ -803,8 +827,8 @@ class OnGoingTask extends StatelessWidget {
                 suburb: order.service?.tenantId ?? '',
                 address: AppUtils().formatAddress(order.service?.address),
                 tenantName: order.service?.user?.name ?? '',
-                propertyImage: (jsonDecode((order.service?.additionalDetail ?? '{}').toString()) as Map?)?['household']?['image'] != null
-                ? [order.imageUrls?.first ?? ImageAssetsConst.sampleRoomPage]
+                propertyImage: (order.imageUrls ?? []).isNotEmpty
+                ? order.imageUrls
                     : [ImageAssetsConst.sampleRoomPage],
                 date: AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime) ,
                 tenantContactName: (jsonDecode((order.service?.additionalDetail ?? '{}').toString()) as Map?)?['household']?['contactNo'],
@@ -852,23 +876,13 @@ class OnGoingTask extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10.0),
                       border: Border.all(color: Colors.grey, width: 0.1),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10.0),
-                      child:  Image.network(
-                        (jsonDecode((order.service?.additionalDetail ?? '{}').toString()) as Map?)?['household']?['image'] != null
-                            ? order.imageUrls?.first ?? ImageAssetsConst.sampleRoomPage
-                            : ImageAssetsConst.sampleRoomPage,
-                              fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Image.network(
-                            ImageAssetsConst.sampleRoomPage,
-                            width: 120,
-                            height: 140,
-                            fit: BoxFit.fill,
-                          );
-                        },
-                            ),
-                    ),
+                    child: ThumbCollage(
+                      urls: order.imageUrls ?? [],
+                      height: 100,
+                      width: double.infinity, // or the card’s width
+                      borderRadius: 10,
+                      spacing: 2,
+                    )
                   ),
                   const SizedBox(width: 5),
                   Column(

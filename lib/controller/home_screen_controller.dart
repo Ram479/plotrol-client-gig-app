@@ -144,6 +144,11 @@ class HomeScreenController extends GetxController {
     update();
   }
 
+  void updateLoadingState() {
+    isOrderLoading.value = true;
+    update();
+  }
+
   getPropertiesApiFunction() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     // ApiConstants.tenantId = prefs.getInt('tenantId') ?? 0;
@@ -285,80 +290,119 @@ class HomeScreenController extends GetxController {
   }
 
   Future<List<ServiceWrapper>> enrichOrdersWithImageUrls(
-      List<ServiceWrapper> orders, String tenantId) async {
+      List<ServiceWrapper> orders,
+      String tenantId,
+      ) async {
     try {
-      // Step 1: Build map of fileStoreId → List<ServiceWrapper>
-      final Map<String, List<ServiceWrapper>> fileStoreIdToOrders = {};
-      final Map<String, List<ServiceWrapper>> reportFileStoreIdToOrders = {};
+      // ---------- HOUSEHOLD: image_1...image_n ----------
+      // Keep per-order ordered ids, and a global set for a single fetch
+      final Map<ServiceWrapper, List<String>> orderToHouseholdIds = {};
+      final Set<String> allHouseholdIds = {};
 
-      // Step 1a: Handle household.image fields
-      for (var hh in orders) {
-        final additionalDetail = hh.service?.additionalDetail ?? '{}';
-        final additionalDetailMap = jsonDecode(additionalDetail.toString()) as Map?;
+      for (final ord in orders) {
+        final raw = ord.service?.additionalDetail ?? '{}';
 
-        final imageField = additionalDetailMap?['household']?['image'];
-        if (imageField != null && imageField.toString().trim().isNotEmpty) {
-          final fileStoreId = imageField.toString();
-          fileStoreIdToOrders.putIfAbsent(fileStoreId, () => []).add(hh);
+        Map<String, dynamic>? detail;
+        try {
+          final parsed = jsonDecode(raw.toString());
+          detail = (parsed is Map) ? parsed.cast<String, dynamic>() : null;
+        } catch (_) {
+          detail = null;
         }
+        if (detail == null) continue;
+
+        final hhDyn = detail['household'];
+        final Map<String, dynamic>? hh =
+        (hhDyn is Map) ? hhDyn.cast<String, dynamic>() : null;
+        if (hh == null) continue;
+
+        // collect (index, id) from image_1...image_n
+        final List<MapEntry<int, String>> indexed = [];
+        for (final entry in hh.entries) {
+          final key = entry.key?.toString() ?? '';
+          if (!key.startsWith('image_')) continue;
+
+          final id = entry.value?.toString() ?? '';
+          if (id.trim().isEmpty) continue;
+
+          final idx = int.tryParse(key.substring('image_'.length)) ?? -1;
+          if (idx > 0) indexed.add(MapEntry(idx, id));
+        }
+
+        if (indexed.isEmpty) continue;
+
+        indexed.sort((a, b) => a.key.compareTo(b.key));
+        final ids = indexed.map((e) => e.value).toList();
+
+        orderToHouseholdIds[ord] = ids;
+        allHouseholdIds.addAll(ids);
       }
 
-      final allFileStoreIds = fileStoreIdToOrders.keys.toSet().toList();
-      if (allFileStoreIds.isNotEmpty) {
-        final List<FileStoreModel>? fileStoreModels = await fetchFiles(allFileStoreIds, tenantId);
-        if (fileStoreModels != null) {
-          for (var file in fileStoreModels) {
-            final ordersForId = fileStoreIdToOrders[file.id];
-            if (ordersForId != null && file.url != null && file.url!.isNotEmpty) {
-              for (var hh in ordersForId) {
-                hh.imageUrls ??= [];
-                hh.imageUrls!.add(file.url!.split(',').first);
-              }
-            }
+      if (allHouseholdIds.isNotEmpty) {
+        final models = await fetchFiles(allHouseholdIds.toList(), tenantId);
+        final Map<String, String> idToUrl = {
+          for (final f in (models ?? <FileStoreModel>[]))
+            if ((f.url ?? '').isNotEmpty && (f.id ?? '').isNotEmpty) f.id.toString(): f.url!.split(',').first
+        };
+
+        for (final entry in orderToHouseholdIds.entries) {
+          final urls = <String>[];
+          for (final id in entry.value) {
+            final url = idToUrl[id];
+            if (url != null && url.isNotEmpty) urls.add(url);
           }
+          // dedupe, keep order
+          final seen = <String>{};
+          entry.key.imageUrls = urls.where((u) => seen.add(u)).toList();
         }
       }
 
-      // Step 1b: Handle report_ keys
-      for (var order in orders) {
-        final additionalDetailStr = order.service?.additionalDetail ?? '{}';
-        final additionalDetailMap = jsonDecode(additionalDetailStr.toString()) as Map?;
+      // ---------- REPORT: report_1...report_n (unchanged) ----------
+      final Map<String, List<ServiceWrapper>> reportFileIdToOrders = {};
+      for (final order in orders) {
+        final raw = order.service?.additionalDetail ?? '{}';
+        Map<String, dynamic>? detail;
+        try {
+          final parsed = jsonDecode(raw.toString());
+          detail = (parsed is Map) ? parsed.cast<String, dynamic>() : null;
+        } catch (_) {
+          detail = null;
+        }
+        if (detail == null) continue;
 
-        // Extract values where keys start with 'report_'
-        final reportImageFields = additionalDetailMap?.entries
-            .where((entry) => entry.key.toString().startsWith('report_'))
-            .map((entry) => entry.value)
-            .where((value) => value != null && value.toString().trim().isNotEmpty)
-            .toList() ?? [];
-
-        for (var field in reportImageFields) {
-          final fileStoreId = field.toString();
-          reportFileStoreIdToOrders.putIfAbsent(fileStoreId, () => []).add(order);
+        for (final entry in detail.entries) {
+          final key = entry.key.toString() ?? '';
+          if (!key.startsWith('report_')) continue;
+          final id = entry.value?.toString() ?? '';
+          if (id.trim().isEmpty) continue;
+          reportFileIdToOrders.putIfAbsent(id, () => <ServiceWrapper>[]).add(order);
         }
       }
 
-      final allReportFileStoreIds = reportFileStoreIdToOrders.keys.toSet().toList();
-      if (allReportFileStoreIds.isNotEmpty) {
-        final List<FileStoreModel>? reportFileStoreModels = await fetchFiles(
-            allReportFileStoreIds, tenantId);
-        if (reportFileStoreModels != null) {
-          for (var file in reportFileStoreModels) {
-            final ordersForId = reportFileStoreIdToOrders[file.id];
-            if (ordersForId != null && file.url != null && file.url!.isNotEmpty) {
-              for (var ord in ordersForId) {
-                ord.reportUrls ??= [];
-                ord.reportUrls!.add(file.url!.split(',').first);
-              }
-            }
+      if (reportFileIdToOrders.isNotEmpty) {
+        final reportIds = reportFileIdToOrders.keys.toList();
+        final models = await fetchFiles(reportIds, tenantId);
+        final Map<String, String> idToUrl = {
+          for (final f in (models ?? <FileStoreModel>[]))
+            if ((f.url ?? '').isNotEmpty && (f.id ?? '').isNotEmpty) f.id.toString() : f.url!.split(',').first
+        };
+
+        for (final id in reportFileIdToOrders.keys) {
+          final url = idToUrl[id];
+          if (url == null || url.isEmpty) continue;
+          for (final ord in reportFileIdToOrders[id]!) {
+            ord.reportUrls ??= <String>[];
+            if (!ord.reportUrls!.contains(url)) ord.reportUrls!.add(url);
           }
         }
       }
 
       return orders;
-    } catch (e) {
-      return orders;
+    } catch (_) {
+      return orders; // fail-soft
     }
   }
+
 
   getOrdersResult() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();

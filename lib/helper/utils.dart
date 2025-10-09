@@ -82,6 +82,17 @@ class IdGen {
         endMillis: endOfDay.millisecondsSinceEpoch,
       );
     }
+    Future<void> openUrl(String url) async {
+      final Uri uri = Uri.parse(url);
+
+      if (!await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication, // ensures it opens in browser
+      )) {
+        throw 'Could not launch $url';
+      }
+    }
+
 
     String formatAddress(Address? address) {
       if (address == null) return '';

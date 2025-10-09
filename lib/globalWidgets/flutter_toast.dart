@@ -5,7 +5,7 @@ class Toast {
   static void showToast(String message) {
     Fluttertoast.showToast(
       msg: message,
-      timeInSecForIosWeb: 1,
+      timeInSecForIosWeb: 5,
       backgroundColor: Colors.black,
       textColor: Colors.white,
       fontSize: 15,

@@ -12,6 +12,8 @@ import '../Helper/Logger.dart';
 import '../globalWidgets/text_widget.dart';
 import '../helper/const_assets_const.dart';
 import '../model/response/adding_properties/get_properties_response.dart';
+import '../widgets/thumbnail_collage.dart';
+import 'image_grid_screen.dart';
 
 class BookYourService extends StatelessWidget {
   final List<String>? tenantImage;
@@ -119,31 +121,29 @@ class BookYourService extends StatelessWidget {
                                 ),
                             child: Row(
                               children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 0),
-                                  child: ClipRRect(
-                                    borderRadius: const BorderRadius.only(
-                                      topLeft: Radius.circular(10.0),
-                                      bottomLeft: Radius.circular(10.0),
+                                SizedBox(
+                                  width: 120,
+                                  height: 140,
+                                  child: InkWell(
+                                    onTap: () => Get.to(() => ImageGridScreen(
+                                      imageUrls: tenantImage ?? [],
+                                      title: 'Property Images',
+                                    )),
+                                    child: ClipRRect(
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(10),
+                                        bottomLeft: Radius.circular(10),
+                                      ),
+                                      child: ThumbCollage(
+                                        urls:
+                                        tenantImage ?? [], // safe: already checked isNotEmpty
+                                        height: 140,
+                                        width: 120, // 👈 finite width!
+                                        borderRadius:
+                                        0, // parent ClipRRect already rounds corners
+                                        spacing: 2,
+                                      ),
                                     ),
-                                    child:
-                                    tenantImage != null
-                                        ?
-                                    Image.network(
-                                            tenantImage?.first ?? '',
-                                            width: 100,
-                                            height: 110,
-                                            fit: BoxFit.fill,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Image.network(
-                                          ImageAssetsConst.sampleRoomPage,
-                                          width: 120,
-                                          height: 140,
-                                          fit: BoxFit.fill,
-                                        );
-                                      },
-                                          )
-                                        : const SizedBox.shrink(),
                                   ),
                                 ),
                                 Expanded(

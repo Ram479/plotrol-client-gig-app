@@ -70,6 +70,29 @@ class PropertiesDetailsScreen extends StatelessWidget {
                                         fit: BoxFit.fill,
                                       );
                                     },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+
+                                      final total = loadingProgress.expectedTotalBytes;
+                                      final loaded = loadingProgress.cumulativeBytesLoaded;
+                                      final progress = total != null ? loaded / total : null;
+
+                                      return SizedBox(
+                                        height: 140,
+                                        width: 120,
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              CircularProgressIndicator(value: progress),
+                                              const SizedBox(height: 8),
+                                              if (progress != null)
+                                                Text('${(progress * 100).toStringAsFixed(0)}%'),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ))
                             .toList(),

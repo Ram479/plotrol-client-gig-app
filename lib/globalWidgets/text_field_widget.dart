@@ -17,6 +17,7 @@ class CustomTextFormField extends StatelessWidget {
   final void Function(String)? onFieldSubmitted;
   final void Function(String)? onChanged;
   final List<TextInputFormatter>? inputFormatters;
+  final bool readOnly;
 
 
   const CustomTextFormField({
@@ -36,6 +37,7 @@ class CustomTextFormField extends StatelessWidget {
     this.onFieldSubmitted,
     this.onChanged,
     this.inputFormatters,
+    this.readOnly = false,
   });
 
   @override
@@ -46,6 +48,7 @@ class CustomTextFormField extends StatelessWidget {
       obscureText: obscureText,
       validator: validator,
       onSaved: onSaved,
+      readOnly: readOnly,
       onChanged: onChanged,
       maxLines: maxLines,
       textInputAction: textInputAction,

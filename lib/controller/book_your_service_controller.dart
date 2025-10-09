@@ -22,6 +22,7 @@ import '../globalWidgets/flutter_toast.dart';
 import '../helper/utils.dart';
 import '../model/response/categories/get_categories.dart';
 import '../model/response/common_models.dart';
+import '../widgets/success_screen.dart';
 import 'autentication_controller.dart';
 import 'home_screen_controller.dart';
 
@@ -209,6 +210,36 @@ class BookYourServiceController extends GetxController {
       lastModifiedBy: userUuid,
       lastModifiedTime: AppUtils().millisecondsSinceEpoch(),
     );
+    final fields = household.additionalFields?.fields ?? [];
+
+// contact number (safe)
+    String? _getField(String k) {
+      final hits = fields.where((f) => f.key == k);
+      return hits.isNotEmpty ? hits.first.value?.toString() : null;
+    }
+
+// collect image_* fields with numeric suffix and sort by index
+    final imageEntries = fields
+        .where((f) => ((f.key ?? '').startsWith('image_')) && (f.value != null))
+        .toList()
+      ..sort((a, b) {
+        int ai = int.tryParse((a.key ?? '').split('_').last) ?? 0;
+        int bi = int.tryParse((b.key ?? '').split('_').last) ?? 0;
+        return ai.compareTo(bi);
+      });
+
+// build the household detail map with id, contactNo and all image_* pairs
+    final Map<String, dynamic> householdDetail = {
+      "id": household.id,
+      if (_getField('contactNo') != null) "contactNo": _getField('contactNo'),
+    };
+
+// add image_1...image_n -> fileStoreId
+    for (final f in imageEntries) {
+      if ((f.key ?? '').isNotEmpty && (f.value?.toString().isNotEmpty ?? false)) {
+        householdDetail[f.key!] = f.value.toString();
+      }
+    }
     PgrServiceResponse? result = await addPropertiesRepository.bookService(
         ServiceWrapper(
           service: Service(
@@ -222,11 +253,7 @@ class BookYourServiceController extends GetxController {
             tenantId: tenantId,
             user: user,
             additionalDetail: jsonEncode({
-              "household": {
-                "id": household.id,
-                "image": household.additionalFields?.fields?.where((f) => (f.key ?? '').contains('image')).first.value,
-                "contactNo": household.additionalFields?.fields?.where((f) => f.key == 'contactNo').first.value,
-              }
+              "household": householdDetail
             }),
             address: Address(
               tenantId: household.address?.tenantId,
@@ -261,8 +288,11 @@ class BookYourServiceController extends GetxController {
         ));
     if((result?.serviceWrappers ?? []).isNotEmpty) {
       resetCategoryList();
-      Toast.showToast("Thank you for requesting our service. A local Plotrol representative will contact you soon. We appreciate your support in shaping thr future of secure land monitoring.");
-      Get.offAll(() => HomeView(selectedIndex: 1));
+      Get.offAll(() => SuccessScreen(
+        onGoHome: () => Get.offAll(() => HomeView(selectedIndex: 1)),
+      ));
+      // Toast.showToast("Thank you for requesting our service. A local Plotrol representative will contact you soon. We appreciate your support in shaping thr future of secure land monitoring.");
+      // Get.offAll(() => HomeView(selectedIndex: 1));
     }
     else {
       Toast.showToast('There is some issue in placing Your order Please try again later');

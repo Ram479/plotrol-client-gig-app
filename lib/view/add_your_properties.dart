@@ -50,7 +50,24 @@ class AddYourProperties extends StatelessWidget {
               children: [
                 InkWell(
                   onTap: () {
-                    controller.getImageList();
+                    showModalBottomSheet(
+                      context: context,
+                      builder: (_) => SafeArea(
+                        child: Wrap(children: [
+                          ListTile(
+                            leading: const Icon(Icons.photo_camera),
+                            title: const Text('Camera'),
+                            onTap: () { Navigator.pop(context); controller.getImageFromCamera(); },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.photo_library),
+                            title: const Text('Gallery'),
+                            onTap: () { Navigator.pop(context); controller.getImageFromGallery(); },
+                          ),
+                        ]),
+                      ),
+                    );
+                    // controller.getImageList();
                   },
                   child: Row(
                     children: [
@@ -294,7 +311,7 @@ class AddYourProperties extends StatelessWidget {
               onPressed: () async {
                 ApiConstants.addProperties = ApiConstants.addPropertiesLive;
                 controller.addYourPropertiesValidation();
-                authenticationController.updateHouseDetails();
+                // authenticationController.updateHouseDetails();
                 controller.btnController.reset();
               },
               borderRadius: 10,

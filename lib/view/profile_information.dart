@@ -146,6 +146,7 @@ class ProfileInformationScreen extends StatelessWidget {
                     controller: controller.firstNameController,
                     labelText: 'First Name',
                     prefixIcon: const Icon(Icons.person),
+                    readOnly: true,
                   ),
                   const SizedBox(
                     height: 10,
@@ -154,6 +155,7 @@ class ProfileInformationScreen extends StatelessWidget {
                     controller: controller.lastNameController,
                     labelText: 'Last Name',
                     prefixIcon: const Icon(Icons.person),
+                    readOnly: true,
                   ),
                   const SizedBox(
                     height: 10,
@@ -162,6 +164,7 @@ class ProfileInformationScreen extends StatelessWidget {
                     controller: controller.emailController,
                     labelText: 'Email',
                     prefixIcon: const Icon(Icons.email),
+                    readOnly: true,
                   ),
                   const SizedBox(
                     height: 10,
@@ -170,6 +173,7 @@ class ProfileInformationScreen extends StatelessWidget {
                     controller: controller.contactNumber,
                     labelText: 'phone',
                     prefixIcon: const Icon(Icons.phone),
+                    readOnly: true,
                   ),
                   const SizedBox(
                     height: 15,
@@ -202,6 +206,7 @@ class ProfileInformationScreen extends StatelessWidget {
                     onChanged: (value) {
                       controller.onSearchTextChanged(value);
                     },
+                    readOnly: true,
                   ),
                   controller.predictions.isNotEmpty
                       ? Container(
@@ -331,25 +336,25 @@ class ProfileInformationScreen extends StatelessWidget {
             );
           }),
         ),
-        bottomNavigationBar: SizedBox(
-          child: Padding(
-            padding: EdgeInsets.all(10),
-            child: RoundedLoadingButton(
-              width: Get.width,
-              color: Colors.black,
-              onPressed: () async {
-                editProfileController.updateApiWithImage();
-              },
-              borderRadius: 10,
-              controller: editProfileController.btnController,
-              child: const ReusableTextWidget(
-                text: 'Update',
-                color: Colors.white,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ),
+        // bottomNavigationBar: SizedBox(
+        //   child: Padding(
+        //     padding: EdgeInsets.all(10),
+        //     child: RoundedLoadingButton(
+        //       width: Get.width,
+        //       color: Colors.black,
+        //       onPressed: () async {
+        //         editProfileController.updateApiWithImage();
+        //       },
+        //       borderRadius: 10,
+        //       controller: editProfileController.btnController,
+        //       child: const ReusableTextWidget(
+        //         text: 'Update',
+        //         color: Colors.white,
+        //         fontSize: 16,
+        //       ),
+        //     ),
+        //   ),
+        // ),
       ),
     );
   }

@@ -14,6 +14,8 @@ import '../../globalWidgets/text_widget.dart';
 import '../../helper/const_assets_const.dart';
 import '../../helper/utils.dart';
 import '../../model/response/book_service/pgr_create_response.dart';
+import '../../widgets/thumbnail_collage.dart';
+import '../image_grid_screen.dart';
 import '../order_details.dart';
 
 class GigHomeScreen extends StatelessWidget {
@@ -79,6 +81,29 @@ class GigHomeScreen extends StatelessWidget {
                                       width: 120,
                                       height: 140,
                                       fit: BoxFit.fill,
+                                    );
+                                  },
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+
+                                    final total = loadingProgress.expectedTotalBytes;
+                                    final loaded = loadingProgress.cumulativeBytesLoaded;
+                                    final progress = total != null ? loaded / total : null;
+
+                                    return SizedBox(
+                                      height: 140,
+                                      width: 120,
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            CircularProgressIndicator(value: progress),
+                                            const SizedBox(height: 8),
+                                            if (progress != null)
+                                              Text('${(progress * 100).toStringAsFixed(0)}%'),
+                                          ],
+                                        ),
+                                      ),
                                     );
                                   },
                                       )
@@ -168,17 +193,17 @@ class OnGoingTask extends StatelessWidget {
         // homeScreenController.isOrderLoading.value = true;
       },
       builder: (controller) {
-        // if (homeScreenController.getOrderDetails.isEmpty && !controller.isOrderLoading.value) {
-        //   return const SizedBox(
-        //     height: 145,
-        //     child: Center(
-        //       child: ReusableTextWidget(
-        //         text: 'No Task Found',
-        //         fontSize: 15,
-        //       ),
-        //     ),
-        //   );
-        // }
+        if (homeScreenController.getOrderDetails.isEmpty && !controller.isOrderLoading.value) {
+          return const SizedBox(
+            height: 145,
+            child: Center(
+              child: ReusableTextWidget(
+                text: 'No Task Found',
+                fontSize: 15,
+              ),
+            ),
+          );
+        }
 
         if (homeScreenController.isOrderLoading.value) {
           return SizedBox(
@@ -284,9 +309,7 @@ class OnGoingTask extends StatelessWidget {
             suburb: order.service?.tenantId ?? '',
             address: AppUtils().formatAddress(order.service?.address),
             tenantName: order.service?.user?.name ?? '',
-            propertyImage: (jsonDecode((order.service?.additionalDetail ?? '{}').toString()) as Map?)?['household']?['image'] != null
-                ? [order.imageUrls?.first ?? ImageAssetsConst.sampleRoomPage]
-                : [ImageAssetsConst.sampleRoomPage],
+            propertyImage: order.imageUrls,
             date: AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime) ,
             tenantContactName: (jsonDecode((order.service?.additionalDetail ?? '{}').toString()) as Map?)?['household']?['contactNo'],
             type: AppUtils().getOrderStatus(order),
@@ -326,31 +349,31 @@ class OnGoingTask extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    height: 60,
-                    width: 60,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10.0),
-                      border: Border.all(color: Colors.grey, width: 0.1),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10.0),
-                      child:  Image.network(
-                        (jsonDecode((order.service?.additionalDetail ?? '{}').toString()) as Map?)?['household']?['image'] != null
-                            ? order.imageUrls?.first ?? ImageAssetsConst.sampleRoomPage
-                            : ImageAssetsConst.sampleRoomPage,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Image.network(
-                            ImageAssetsConst.sampleRoomPage,
-                            width: 120,
-                            height: 140,
-                            fit: BoxFit.fill,
-                          );
-                        },
+                    SizedBox(
+                      width: 80,
+                      height: 80,
+                      child: InkWell(
+                        onTap: () => Get.to(() => ImageGridScreen(
+                          imageUrls: order.imageUrls ?? [],
+                          title: 'Property Images',
+                        )),
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(10),
+                            bottomLeft: Radius.circular(10),
+                          ),
+                          child: ThumbCollage(
+                            urls:
+                            order.imageUrls ?? [], // safe: already checked isNotEmpty
+                            height: 80,
+                            width: 80, // 👈 finite width!
+                            borderRadius:
+                            0, // parent ClipRRect already rounds corners
+                            spacing: 2,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
                   const SizedBox(width: 5),
                   Column(
                     mainAxisAlignment: MainAxisAlignment.start,

@@ -328,25 +328,22 @@ class RequesterLoginController extends GetxController {
               ? HomeView(selectedIndex: 0)
               : GigHomeView(selectedIndex: 0));
         } else {
+          btnController.reset();
+          Toast.showToast(
+              'Auto login failed. Please try logging in with the created credentials.');
           // Handle login failure
-          final snackBar = const SnackBar(
-            backgroundColor: Colors.red,
-            content: ReusableTextWidget(
-              text: 'Auto login failed. Please log in again from the login screen.',
-              color: Colors.white,
-            ),
-          );
-          ScaffoldMessenger.of(context).showSnackBar(snackBar);
         }
       }
       else {
+        btnController.reset();
         Toast.showToast(
             'Something went wrong. The mobile number might already be in use');
       }
     }
     else{
+      btnController.reset();
       Toast.showToast(
-          'Too many login attempts. Please contact the admin to login to your account');
+          'Too many login attempts. Contact admin or clear app data to try again.');
     }
 
       update();
@@ -437,42 +434,5 @@ class RequesterLoginController extends GetxController {
     return '${firstName[0].toUpperCase()} ${lastName[0].toUpperCase()}';
   }
 
-  sendSmsOtp(String mobile, {authmode = 0}) async {
-    int otpInput = await otpGenerator();
-    smsOtp.value = otpInput.toString();
-    if (authmode == 1) {
-      onNavigateToProfileNumberVerification(otp: "123456", authmode: authmode);
-    } else {
-      receiveSmsOtp(mobile, smsOtp.toString());
-    }
-  }
 
-  receiveSmsOtp(String phoneNumber, String otp) async {
-    final response = await get(Uri.parse(
-        'http://msg.lionsms.com/api/smsapi?key=aff7056ac03a660b7c20a870f13d2173&route=1&sender=SRIHTR&number=$phoneNumber&sms=Dear customer, use this One Time Password $otp to sign-in to plotrol app. This OTP will be valid for the next 5 mins.&templateid=1407169337463925961'));
-    receiveOtp(response, otp);
-  }
-
-  receiveOtp(model, otp) async {
-    onNavigateToProfileNumberVerification(otp: otp);
-  }
-
-  onNavigateToProfileNumberVerification({String? otp, authmode = 0}) {
-    otpController.clear();
-    resendOtp.value = otp ?? '';
-    Get.to(() => OtpScreen(
-      otp: resendOtp.value,
-      authMode: authmode,
-      logInStatus: logInStatus.value,
-    ));
-  }
-
-  otpGenerator() {
-    var rng = Random();
-    var next = rng.nextDouble() * 1000000;
-    while (next < 100000) {
-      next *= 10;
-    }
-    return next.toInt();
-  }
 }

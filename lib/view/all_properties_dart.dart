@@ -82,9 +82,9 @@ class AllProperties extends StatelessWidget {
                       return InkWell(
                         onTap: () {
                           Get.to(() => PropertiesDetailsScreen(
-                                propertyImage: [controller
+                                propertyImage: controller
                                     .getPropertiesDetails[
-                                index].imageUrls?.first ?? ImageAssetsConst.sampleRoomPage],
+                                index].imageUrls,
                                 address: AppUtils().formatAddress(controller.getPropertiesDetails[index].address),
                             contactNumber: controller
                                 .getPropertiesDetails[

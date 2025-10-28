@@ -43,9 +43,9 @@ class _LocationMapState extends State<LocationMap> {
         _longitude = position.longitude;
       });
       _mapController.move(LatLng(_latitude, _longitude), 14.0);
-      if(widget.refreshLocation != null) {
+      if (widget.refreshLocation != null) {
         widget.refreshLocation!();
-      }// Call the provided callback function
+      } // Call the provided callback function
     } catch (e) {
       Toast.showToast(
         "Failed to get current location: $e",
@@ -66,8 +66,8 @@ class _LocationMapState extends State<LocationMap> {
               options: MapOptions(
                 maxZoom: 45,
                 minZoom: 10,
-                center: LatLng(_latitude, _longitude),
-                zoom: 13.0,
+                initialCenter: LatLng(_latitude, _longitude),
+                initialZoom: 13.0,
               ),
               children: [
                 TileLayer(
@@ -79,7 +79,7 @@ class _LocationMapState extends State<LocationMap> {
                   markers: [
                     Marker(
                       point: LatLng(_latitude, _longitude),
-                      builder: (ctx) => const Column(
+                      child: const Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
@@ -120,14 +120,14 @@ class _LocationMapState extends State<LocationMap> {
             ),
           ),
           // Floating Action Button
-          if(widget.refreshLocation != null)
+          if (widget.refreshLocation != null)
             Padding(
-            padding: const EdgeInsets.only(bottom: 16.0),
-            child: FloatingActionButton(
-              onPressed: _getCurrentLocation,
-              child: const Icon(Icons.my_location),
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: FloatingActionButton(
+                onPressed: _getCurrentLocation,
+                child: const Icon(Icons.my_location),
+              ),
             ),
-          ),
         ],
       ),
     );

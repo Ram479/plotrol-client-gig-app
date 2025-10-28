@@ -9,23 +9,25 @@ import 'package:plotrol/helper/Logger.dart';
 import 'package:plotrol/helper/const_assets_const.dart';
 import 'package:plotrol/helper/const_ui_strings.dart';
 import 'package:plotrol/view/create_account.dart';
-import 'package:plotrol/view/home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sizer/sizer.dart';
+
 import '../globalWidgets/flutter_toast.dart';
 import '../globalWidgets/text_widget.dart';
 import 'main_screen.dart';
-
 
 class OtpScreen extends StatelessWidget {
   final String otp;
   final int authMode;
   final bool logInStatus;
-  OtpScreen({super.key, this.otp = '', this.authMode = 0, this.logInStatus = false});
+  OtpScreen(
+      {super.key, this.otp = '', this.authMode = 0, this.logInStatus = false});
 
-  final AuthenticationController authenticationController = Get.put(AuthenticationController());
+  final AuthenticationController authenticationController =
+      Get.put(AuthenticationController());
 
-  final BookYourServiceController bookYourServiceController = Get.put(BookYourServiceController());
+  final BookYourServiceController bookYourServiceController =
+      Get.put(BookYourServiceController());
 
   @override
   Widget build(BuildContext context) {
@@ -53,74 +55,81 @@ class OtpScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: GetBuilder<AuthenticationController>(
-        builder: (controller) {
-          return Sizer(
-            builder: (context, orientation, deviceType) {
-              return Center(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 2.h,
-                    right: 2.h,
-                    bottom: 2.h,
-                  ),
-                  child: SingleChildScrollView(
-                    child: SizedBox(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            height: 10.h,
-                          ),
-                          const ReusableTextWidget(
-                            text: ConstUiStrings.plotRol,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 26,
-                          ),
-                          SizedBox(
-                            height: 2.h,
-                          ),
-                          Image.asset(
-                              ImageAssetsConst.plotRolLogo,
-                              height: 120,
-                              width: 120,
-                          ),
-                          SizedBox(
-                            height: 5.h,
-                          ),
-                          const ReusableTextWidget(
-                            text: ConstUiStrings.verification,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          const ReusableTextWidget(
-                            text: ConstUiStrings.otpVerificationText,
-                          ),
-                          SizedBox(
-                            height: 3.h,
-                          ),
-                          AutofillGroup(
-                            child: Pinput(
-                                length: 6,
-                                autofocus: true,
-                                keyboardType: TextInputType.number,
-                                textInputAction: TextInputAction.next,
-                                defaultPinTheme: defaultPinTheme, // Default theme for all fields
-                                focusedPinTheme: focusedPinTheme, // Theme for the focused field
-                                submittedPinTheme: submittedPinTheme, // Theme for the submitted state
-                                pinputAutovalidateMode: PinputAutovalidateMode.onSubmit, // Validation behavior
-                                showCursor: true,
-                                androidSmsAutofillMethod: AndroidSmsAutofillMethod.smsRetrieverApi,
-                                onChanged: (text) async {
-                                SharedPreferences prefs = await SharedPreferences.getInstance();
+      body: GetBuilder<AuthenticationController>(builder: (controller) {
+        return Sizer(
+          builder: (context, orientation, deviceType) {
+            return Center(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 2.h,
+                  right: 2.h,
+                  bottom: 2.h,
+                ),
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          height: 10.h,
+                        ),
+                        const ReusableTextWidget(
+                          text: ConstUiStrings.plotRol,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 26,
+                        ),
+                        SizedBox(
+                          height: 2.h,
+                        ),
+                        Image.asset(
+                          ImageAssetsConst.plotRolLogo,
+                          height: 120,
+                          width: 120,
+                        ),
+                        SizedBox(
+                          height: 5.h,
+                        ),
+                        const ReusableTextWidget(
+                          text: ConstUiStrings.verification,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        const ReusableTextWidget(
+                          text: ConstUiStrings.otpVerificationText,
+                        ),
+                        SizedBox(
+                          height: 3.h,
+                        ),
+                        AutofillGroup(
+                          child: Pinput(
+                              length: 6,
+                              autofocus: true,
+                              keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.next,
+                              defaultPinTheme:
+                                  defaultPinTheme, // Default theme for all fields
+                              focusedPinTheme:
+                                  focusedPinTheme, // Theme for the focused field
+                              submittedPinTheme:
+                                  submittedPinTheme, // Theme for the submitted state
+                              pinputAutovalidateMode: PinputAutovalidateMode
+                                  .onSubmit, // Validation behavior
+                              showCursor: true,
+                              onChanged: (text) async {
+                                SharedPreferences prefs =
+                                    await SharedPreferences.getInstance();
                                 if (controller.resendOtp.value == text) {
                                   if (controller.authMode.value == 1) {
                                     text = controller.resendOtp.value ?? '';
                                   }
                                   if (logInStatus == true) {
-                                    prefs.setString('userFcmToken', controller.userFcmToken.value ?? '');
-                                    prefs.setString('contactNo', controller.contactNo.value ?? '');
-                                    Get.to(() => HomeView(selectedIndex: 0,));
+                                    prefs.setString('userFcmToken',
+                                        controller.userFcmToken.value ?? '');
+                                    prefs.setString('contactNo',
+                                        controller.contactNo.value ?? '');
+                                    Get.to(() => HomeView(
+                                          selectedIndex: 0,
+                                        ));
                                   } else {
                                     showModalBottomSheet(
                                         context: Get.context!,
@@ -132,17 +141,23 @@ class OtpScreen extends StatelessWidget {
                                               topRight: Radius.circular(20)),
                                         ),
                                         builder: (context) {
-                                          return Column( mainAxisAlignment: MainAxisAlignment.start,
-                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                          return Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
                                             children: [
                                               SizedBox(
-                                                height:
-                                                Get.context?.orientation == Orientation.landscape ?
-                                                Get.height * 0.6 : Get.height * 0.3,
+                                                height: Get.context
+                                                            ?.orientation ==
+                                                        Orientation.landscape
+                                                    ? Get.height * 0.6
+                                                    : Get.height * 0.3,
                                                 // width: Get.width * 0.10,
                                                 child: Padding(
-                                                  padding: const EdgeInsets.only(
-                                                      bottom: 0),
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          bottom: 0),
                                                   child: Center(
                                                       child: Lottie.asset(
                                                     'assets/images/nodatafound.json',
@@ -158,11 +173,11 @@ class OtpScreen extends StatelessWidget {
                                                   child: Text(
                                                     "Oops, we couldn't find your account. Instead, would you like to create a new one?",
                                                     style: TextStyle(
-                                                        fontSize: 18,
-                                                        fontFamily: "Raleway",
-                                                        fontWeight:
-                                                            FontWeight.normal,
-                                                        color: Colors.black,
+                                                      fontSize: 18,
+                                                      fontFamily: "Raleway",
+                                                      fontWeight:
+                                                          FontWeight.normal,
+                                                      color: Colors.black,
                                                     ),
                                                     maxLines: 3,
                                                     textAlign: TextAlign.center,
@@ -180,7 +195,9 @@ class OtpScreen extends StatelessWidget {
                                                     onTap: () {
                                                       Get.to(
                                                         CreateAccountScreen(
-                                                          contactNumber: controller.mobileController.text,
+                                                          contactNumber: controller
+                                                              .mobileController
+                                                              .text,
                                                         ),
                                                       );
                                                     },
@@ -190,17 +207,17 @@ class OtpScreen extends StatelessWidget {
                                                       decoration: BoxDecoration(
                                                         color: Colors.black,
                                                         borderRadius:
-                                                            BorderRadius.circular(10),
+                                                            BorderRadius
+                                                                .circular(10),
                                                       ),
                                                       child: const Center(
                                                           child: Text(
                                                               'Create Account',
                                                               style: TextStyle(
-                                                                color: Colors.white,
+                                                                color: Colors
+                                                                    .white,
                                                                 fontSize: 16,
-                                                              )
-                                                          )
-                                                      ),
+                                                              ))),
                                                     ),
                                                   ),
                                                   const SizedBox(
@@ -216,14 +233,14 @@ class OtpScreen extends StatelessWidget {
                                                       decoration: BoxDecoration(
                                                         color: Colors.black,
                                                         borderRadius:
-                                                            BorderRadius.circular(
-                                                                10),
+                                                            BorderRadius
+                                                                .circular(10),
                                                       ),
                                                       child: const Center(
-                                                          child: Text(
-                                                              'Cancel',
+                                                          child: Text('Cancel',
                                                               style: TextStyle(
-                                                                color: Colors.white,
+                                                                color: Colors
+                                                                    .white,
                                                                 fontSize: 16,
                                                               ))),
                                                     ),
@@ -239,60 +256,60 @@ class OtpScreen extends StatelessWidget {
                                   }
                                 }
                               },
-                                onCompleted: (text) {
+                              onCompleted: (text) {
                                 if (text != controller.resendOtp.value) {
                                   controller.otpController.clear();
                                   logger.i('textonCompleted $text');
-                                  logger.i('otpCompleted ${controller.resendOtp}');
+                                  logger.i(
+                                      'otpCompleted ${controller.resendOtp}');
                                   Toast.showToast('Please Enter Valid Otp');
                                 }
                                 // else {
                                 //   bookYourServiceController.getCategories();
                                 // }
                               }),
-                          ),
-                          SizedBox(
-                            height: 2.h,
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const ReusableTextWidget(
-                                text: ConstUiStrings.didNtReceiveCode,
+                        ),
+                        SizedBox(
+                          height: 2.h,
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const ReusableTextWidget(
+                              text: ConstUiStrings.didNtReceiveCode,
+                            ),
+                            OtpTimerButton(
+                              buttonType: ButtonType.text_button,
+                              controller: controller.otpTimerController,
+                              onPressed: () {
+                                controller.sendSmsOtp(
+                                    controller.mobileController.text);
+                              },
+                              radius: 30,
+                              text: const Text(
+                                ConstUiStrings.resendAgain,
+                                style: TextStyle(
+                                    color: Colors.black,
+                                    fontFamily: 'Raleway',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold),
                               ),
-                              OtpTimerButton(
-                                buttonType: ButtonType.text_button,
-                                controller: controller.otpTimerController,
-                                onPressed: () {
-                                  controller.sendSmsOtp(controller.mobileController.text);
-                                },
-                                radius: 30,
-                                text: const Text(
-                                  ConstUiStrings.resendAgain,
-                                  style: TextStyle(
-                                      color: Colors.black,
-                                      fontFamily: 'Raleway',
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold
-                                  ),
-                                ),
-                                duration: 60,
-                              ),
-                            ],
-                          ),
-                          SizedBox(
-                            height: 5.h,
-                          ),
-                        ],
-                      ),
+                              duration: 60,
+                            ),
+                          ],
+                        ),
+                        SizedBox(
+                          height: 5.h,
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              );
-            },
-          );
-        }
-      ),
+              ),
+            );
+          },
+        );
+      }),
     );
   }
 }

@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="Gradle: io.mockk:mockk-agent-api-jvm:1.13.12" type="AndroidModuleLibraryType">
-    <CLASSES>
-      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.mockk/mockk-agent-api-jvm/1.13.12/2149adf5a1d176fe0bbcfb8b19c92662401453b4/mockk-agent-api-jvm-1.13.12.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

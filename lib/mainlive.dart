@@ -9,8 +9,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:plotrol/helper/api_constants.dart';
-import 'package:plotrol/view/intro_screen.dart';
-import 'package:plotrol/view/local_push_notification.dart';
 import 'package:plotrol/view/main_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sizer/sizer.dart';
@@ -30,7 +28,7 @@ class MyHttpOverrides extends HttpOverrides {
 AndroidNotificationChannel channel = const AndroidNotificationChannel(
   'Plotrol', // id
   'Plotrol Notifications', // title
-  'Plotrol', // description
+  description: 'Plotrol', // description
   importance: Importance.high,
   sound: RawResourceAndroidNotificationSound('ring'),
   enableLights: true,
@@ -115,12 +113,11 @@ class _MyHomePageState extends State<MyHomePage> {
       selectedIndex: 0,
     );
 
-      // (userId == null || userFcmToken == null)
-      //   ? OnBoardPage()
-      //   : HomeView(
-      //       selectedIndex: 0,
-      //     );
-
+    // (userId == null || userFcmToken == null)
+    //   ? OnBoardPage()
+    //   : HomeView(
+    //       selectedIndex: 0,
+    //     );
   }
 
   Future<String?> getId() async {
@@ -164,24 +161,24 @@ class _MyHomePageState extends State<MyHomePage> {
     logger.i('UserId From UserDetails : $userId');
   }
 
-  // checkVersion() async {
-  //   status.checkUpdate().then((value) {
-  //     logger.i(
-  //         "canUpdateinversionchecker${value.canUpdate}"); //return true if update is available
-  //     logger.i(
-  //         "currentVersioninversionchecker${value.currentVersion}"); //return current app version
-  //     logger.i(
-  //         "newVersioninversionchecker${value.newVersion}"); //return the new app version
-  //     logger.i("appURLinversionchecker${value.appURL}"); //return the app url
-  //     logger.i(value.errorMessage);
-  //     if (value.canUpdate) {
-  //       Get.to(UpdateAppPage(
-  //         mCurrentVersion: value.currentVersion.toString(),
-  //         mUpdateVersion: value.newVersion.toString(),
-  //       ));
-  //     } //return error message if found else it will return null
-  //   });
-  // }
+// checkVersion() async {
+//   status.checkUpdate().then((value) {
+//     logger.i(
+//         "canUpdateinversionchecker${value.canUpdate}"); //return true if update is available
+//     logger.i(
+//         "currentVersioninversionchecker${value.currentVersion}"); //return current app version
+//     logger.i(
+//         "newVersioninversionchecker${value.newVersion}"); //return the new app version
+//     logger.i("appURLinversionchecker${value.appURL}"); //return the app url
+//     logger.i(value.errorMessage);
+//     if (value.canUpdate) {
+//       Get.to(UpdateAppPage(
+//         mCurrentVersion: value.currentVersion.toString(),
+//         mUpdateVersion: value.newVersion.toString(),
+//       ));
+//     } //return error message if found else it will return null
+//   });
+// }
 }
 
 // class IntialNotifcationSetting {

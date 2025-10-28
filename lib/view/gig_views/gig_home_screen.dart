@@ -34,8 +34,7 @@ class GigHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomScaffold(
       body: Sizer(
-        builder: (BuildContext context, Orientation orientation,
-            DeviceType deviceType) {
+        builder: (BuildContext context, Orientation orientation, deviceType) {
           return GetBuilder<HomeScreenController>(initState: (_) {
             homeScreenController.getTenantApiFunction();
             homeScreenController.getOrdersApiFunction();
@@ -75,37 +74,46 @@ class GigHomeScreen extends StatelessWidget {
                                         width: 50,
                                         height: 50,
                                         ImageAssetsConst.sampleUserProfile,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.network(
-                                      ImageAssetsConst.sampleUserProfile,
-                                      width: 120,
-                                      height: 140,
-                                      fit: BoxFit.fill,
-                                    );
-                                  },
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return Image.network(
+                                            ImageAssetsConst.sampleUserProfile,
+                                            width: 120,
+                                            height: 140,
+                                            fit: BoxFit.fill,
+                                          );
+                                        },
+                                        loadingBuilder:
+                                            (context, child, loadingProgress) {
+                                          if (loadingProgress == null)
+                                            return child;
 
-                                    final total = loadingProgress.expectedTotalBytes;
-                                    final loaded = loadingProgress.cumulativeBytesLoaded;
-                                    final progress = total != null ? loaded / total : null;
+                                          final total = loadingProgress
+                                              .expectedTotalBytes;
+                                          final loaded = loadingProgress
+                                              .cumulativeBytesLoaded;
+                                          final progress = total != null
+                                              ? loaded / total
+                                              : null;
 
-                                    return SizedBox(
-                                      height: 140,
-                                      width: 120,
-                                      child: Center(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            CircularProgressIndicator(value: progress),
-                                            const SizedBox(height: 8),
-                                            if (progress != null)
-                                              Text('${(progress * 100).toStringAsFixed(0)}%'),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                          return SizedBox(
+                                            height: 140,
+                                            width: 120,
+                                            child: Center(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  CircularProgressIndicator(
+                                                      value: progress),
+                                                  const SizedBox(height: 8),
+                                                  if (progress != null)
+                                                    Text(
+                                                        '${(progress * 100).toStringAsFixed(0)}%'),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       )
                                     : Shimmer.fromColors(
                                         baseColor: Colors.grey[300]!,
@@ -193,7 +201,8 @@ class OnGoingTask extends StatelessWidget {
         // homeScreenController.isOrderLoading.value = true;
       },
       builder: (controller) {
-        if (homeScreenController.getOrderDetails.isEmpty && !controller.isOrderLoading.value) {
+        if (homeScreenController.getOrderDetails.isEmpty &&
+            !controller.isOrderLoading.value) {
           return const SizedBox(
             height: 145,
             child: Center(
@@ -235,8 +244,7 @@ class OnGoingTask extends StatelessWidget {
                 return buildOrderItem(controller.acceptedOrders[index]);
               },
             );
-          }
-          else if (status == 'completed') {
+          } else if (status == 'completed') {
             if (controller.completedOrders.isEmpty) {
               return SizedBox(
                 height: Get.height * 0.6,
@@ -258,8 +266,7 @@ class OnGoingTask extends StatelessWidget {
                 return buildOrderItem(controller.completedOrders[index]);
               },
             );
-          }
-          else {
+          } else {
             if (controller.todayOrders.isEmpty) {
               return SizedBox(
                 height: Get.height * 0.6,
@@ -282,8 +289,7 @@ class OnGoingTask extends StatelessWidget {
               },
             );
           }
-        }
-        else {
+        } else {
           return SizedBox(
             height: 145,
             child: ListView.builder(
@@ -305,26 +311,45 @@ class OnGoingTask extends StatelessWidget {
         /// Accepted, Completed, Pending
         try {
           Get.to(() => OrderDetailScreen(
-            tasks: (order.service?.description ?? '').toString().trim().isNotEmpty ? [order.service?.description ?? ''] : [],
-            suburb: order.service?.tenantId ?? '',
-            address: AppUtils().formatAddress(order.service?.address),
-            tenantName: order.service?.user?.name ?? '',
-            propertyImage: order.imageUrls,
-            date: AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime) ,
-            tenantContactName: (jsonDecode((order.service?.additionalDetail ?? '{}').toString()) as Map?)?['household']?['contactNo'],
-            type: AppUtils().getOrderStatus(order),
-            orderID: order.service?.serviceRequestId ?? '',
-            tenantLatitude: (order.service?.address?.latitude ?? 'N/A').toString() ,
-            tenantLongitude: (order.service?.address?.longitude ?? 'N/A').toString(),
-            orderImages: [ImageAssetsConst.plotRolLogo],
-            staffMobileNumber: '<Staff Contact No>',
-            staffLocation: '<Staff Address>',
-            staffName: '<Staff Name>',
-            order: order,
-            startDate: AppUtils().getOrderStatus(order) == "created" ? AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime) : '',
-            acceptedDate: AppUtils().getOrderStatus(order) == "accepted" ? AppUtils.timeStampToDate(order.service?.auditDetails?.lastModifiedTime): '',
-            completedDate: AppUtils().getOrderStatus(order) == "completed" ? AppUtils.timeStampToDate(order.service?.auditDetails?.lastModifiedTime): '',
-          ));
+                tasks: (order.service?.description ?? '')
+                        .toString()
+                        .trim()
+                        .isNotEmpty
+                    ? [order.service?.description ?? '']
+                    : [],
+                suburb: order.service?.tenantId ?? '',
+                address: AppUtils().formatAddress(order.service?.address),
+                tenantName: order.service?.user?.name ?? '',
+                propertyImage: order.imageUrls,
+                date: AppUtils.timeStampToDate(
+                    order.service?.auditDetails?.createdTime),
+                tenantContactName: (jsonDecode(
+                        (order.service?.additionalDetail ?? '{}').toString())
+                    as Map?)?['household']?['contactNo'],
+                type: AppUtils().getOrderStatus(order),
+                orderID: order.service?.serviceRequestId ?? '',
+                tenantLatitude:
+                    (order.service?.address?.latitude ?? 'N/A').toString(),
+                tenantLongitude:
+                    (order.service?.address?.longitude ?? 'N/A').toString(),
+                orderImages: [ImageAssetsConst.plotRolLogo],
+                staffMobileNumber: '<Staff Contact No>',
+                staffLocation: '<Staff Address>',
+                staffName: '<Staff Name>',
+                order: order,
+                startDate: AppUtils().getOrderStatus(order) == "created"
+                    ? AppUtils.timeStampToDate(
+                        order.service?.auditDetails?.createdTime)
+                    : '',
+                acceptedDate: AppUtils().getOrderStatus(order) == "accepted"
+                    ? AppUtils.timeStampToDate(
+                        order.service?.auditDetails?.lastModifiedTime)
+                    : '',
+                completedDate: AppUtils().getOrderStatus(order) == "completed"
+                    ? AppUtils.timeStampToDate(
+                        order.service?.auditDetails?.lastModifiedTime)
+                    : '',
+              ));
         } on Exception catch (e, s) {
           print(s);
         }
@@ -349,31 +374,31 @@ class OnGoingTask extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                    SizedBox(
-                      width: 80,
-                      height: 80,
-                      child: InkWell(
-                        onTap: () => Get.to(() => ImageGridScreen(
-                          imageUrls: order.imageUrls ?? [],
-                          title: 'Property Images',
-                        )),
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(10),
-                            bottomLeft: Radius.circular(10),
-                          ),
-                          child: ThumbCollage(
-                            urls:
-                            order.imageUrls ?? [], // safe: already checked isNotEmpty
-                            height: 80,
-                            width: 80, // 👈 finite width!
-                            borderRadius:
-                            0, // parent ClipRRect already rounds corners
-                            spacing: 2,
-                          ),
+                  SizedBox(
+                    width: 80,
+                    height: 80,
+                    child: InkWell(
+                      onTap: () => Get.to(() => ImageGridScreen(
+                            imageUrls: order.imageUrls ?? [],
+                            title: 'Property Images',
+                          )),
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(10),
+                          bottomLeft: Radius.circular(10),
+                        ),
+                        child: ThumbCollage(
+                          urls: order.imageUrls ??
+                              [], // safe: already checked isNotEmpty
+                          height: 80,
+                          width: 80, // 👈 finite width!
+                          borderRadius:
+                              0, // parent ClipRRect already rounds corners
+                          spacing: 2,
                         ),
                       ),
                     ),
+                  ),
                   const SizedBox(width: 5),
                   Column(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -401,7 +426,8 @@ class OnGoingTask extends StatelessWidget {
                           SizedBox(
                             width: 120,
                             child: ReusableTextWidget(
-                              text: AppUtils().formatAddress(order.service?.address),
+                              text: AppUtils()
+                                  .formatAddress(order.service?.address),
                               maxLines: 4,
                             ),
                           ),
@@ -412,7 +438,10 @@ class OnGoingTask extends StatelessWidget {
                   ),
                   const Spacer(),
                   Container(
-                    decoration: _getDecorationBasedOnStatus(AppUtils().getOrderStatus(order,)),
+                    decoration:
+                        _getDecorationBasedOnStatus(AppUtils().getOrderStatus(
+                      order,
+                    )),
                     child: Padding(
                       padding: const EdgeInsets.all(4),
                       child: Row(
@@ -440,14 +469,15 @@ class OnGoingTask extends StatelessWidget {
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     margin: const EdgeInsets.only(right: 4),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade200,
                       borderRadius: BorderRadius.circular(5),
                     ),
-                    child: ReusableTextWidget(text: order.service?.description ?? '')),
+                    child: ReusableTextWidget(
+                        text: order.service?.description ?? '')),
               ),
               const Spacer(),
               const Divider(),
@@ -460,7 +490,8 @@ class OnGoingTask extends StatelessWidget {
                   // ),
                   // const SizedBox(width: 3),
                   ReusableTextWidget(
-                    text: 'Order Date : ${AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime) }',
+                    text:
+                        'Order Date : ${AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime)}',
                     fontSize: 13,
                   ),
                 ],

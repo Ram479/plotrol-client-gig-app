@@ -1,4 +1,3 @@
-import 'package:easy_date_timeline/easy_date_timeline.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:plotrol/controller/book_your_service_controller.dart';
@@ -10,7 +9,6 @@ import 'package:sizer/sizer.dart';
 
 import '../Helper/Logger.dart';
 import '../globalWidgets/text_widget.dart';
-import '../helper/const_assets_const.dart';
 import '../model/response/adding_properties/get_properties_response.dart';
 import '../widgets/thumbnail_collage.dart';
 import 'image_grid_screen.dart';
@@ -87,7 +85,7 @@ class BookYourService extends StatelessWidget {
               child: SingleChildScrollView(
                 child: Sizer(
                   builder: (BuildContext context, Orientation orientation,
-                      DeviceType deviceType) {
+                      deviceType) {
                     return Column(
                       mainAxisAlignment: MainAxisAlignment.start,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,15 +99,17 @@ class BookYourService extends StatelessWidget {
                           height: 15,
                         ),
                         GestureDetector(
-                        onTap: () async {
-                          if(householdModel.address?.latitude != null  && householdModel.address?.longitude != null) {
-                            await AppUtils().openMap(
-                                householdModel.address?.latitude ?? 0, householdModel.address?.longitude ?? 0);
-                          }
-                          else{
-                            Toast.showToast("Couldn't get coordinates. Please contact Admin");
-                          }
-                        },
+                          onTap: () async {
+                            if (householdModel.address?.latitude != null &&
+                                householdModel.address?.longitude != null) {
+                              await AppUtils().openMap(
+                                  householdModel.address?.latitude ?? 0,
+                                  householdModel.address?.longitude ?? 0);
+                            } else {
+                              Toast.showToast(
+                                  "Couldn't get coordinates. Please contact Admin");
+                            }
+                          },
                           child: Card(
                             color: Colors.white,
                             shape: RoundedRectangleBorder(
@@ -126,21 +126,21 @@ class BookYourService extends StatelessWidget {
                                   height: 140,
                                   child: InkWell(
                                     onTap: () => Get.to(() => ImageGridScreen(
-                                      imageUrls: tenantImage ?? [],
-                                      title: 'Property Images',
-                                    )),
+                                          imageUrls: tenantImage ?? [],
+                                          title: 'Property Images',
+                                        )),
                                     child: ClipRRect(
                                       borderRadius: const BorderRadius.only(
                                         topLeft: Radius.circular(10),
                                         bottomLeft: Radius.circular(10),
                                       ),
                                       child: ThumbCollage(
-                                        urls:
-                                        tenantImage ?? [], // safe: already checked isNotEmpty
+                                        urls: tenantImage ??
+                                            [], // safe: already checked isNotEmpty
                                         height: 140,
                                         width: 120, // 👈 finite width!
                                         borderRadius:
-                                        0, // parent ClipRRect already rounds corners
+                                            0, // parent ClipRRect already rounds corners
                                         spacing: 2,
                                       ),
                                     ),
@@ -148,8 +148,8 @@ class BookYourService extends StatelessWidget {
                                 ),
                                 Expanded(
                                   child: Padding(
-                                    padding:
-                                        const EdgeInsets.only(left: 5, right: 5),
+                                    padding: const EdgeInsets.only(
+                                        left: 5, right: 5),
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -324,8 +324,6 @@ class BookYourService extends StatelessWidget {
                         //   fontSize: 17,
                         //   fontWeight: FontWeight.w600,
                         // ),
-
-
                       ],
                     );
                   },
@@ -344,7 +342,8 @@ class BookYourService extends StatelessWidget {
                   // controller.bookYourServiceValidation();
                   // controller.resetSelection();
                   // controller.btnController.reset();
-                  controller.bookYourServiceValidation(locationID, householdModel);
+                  controller.bookYourServiceValidation(
+                      locationID, householdModel);
                 },
                 borderRadius: 10,
                 controller: controller.btnController,

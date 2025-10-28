@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -9,7 +8,6 @@ import 'package:plotrol/controller/book_your_service_controller.dart';
 import 'package:plotrol/controller/create_account_controller.dart';
 import 'package:plotrol/controller/home_screen_controller.dart';
 import 'package:plotrol/globalWidgets/text_widget.dart';
-import 'package:plotrol/helper/api_constants.dart';
 import 'package:plotrol/helper/utils.dart';
 import 'package:plotrol/view/ongoing_task.dart';
 import 'package:plotrol/view/order_details.dart';
@@ -24,7 +22,6 @@ import '../globalWidgets/flutter_toast.dart';
 import '../helper/const_assets_const.dart';
 import '../model/response/autentication_response/autentication_response.dart';
 import '../model/response/book_service/pgr_create_response.dart';
-import '../model/response/orders/get_orders_response.dart';
 import '../widgets/thumbnail_collage.dart';
 import 'all_properties_dart.dart';
 import 'book_your_service.dart';
@@ -63,38 +60,38 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Sizer(
       builder: (context, orientation, deviceType) {
-        return GetBuilder<HomeScreenController>(
-            initState: (_) async {
-              WidgetsBinding.instance.addPostFrameCallback((_) async {
-                final prefs = await SharedPreferences.getInstance();
+        return GetBuilder<HomeScreenController>(initState: (_) async {
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            final prefs = await SharedPreferences.getInstance();
 
-                if (prefs.getString('access_token') == null) {
-                  // Navigation during build can also trigger the same error
-                  Get.offAll(() => LoginScreen());
-                  return;
-                }
+            if (prefs.getString('access_token') == null) {
+              // Navigation during build can also trigger the same error
+              Get.offAll(() => LoginScreen());
+              return;
+            }
 
-                final userInfoString = prefs.getString('userInfo');
-                final userRequest = UserRequest.fromJson(jsonDecode(userInfoString!));
+            final userInfoString = prefs.getString('userInfo');
+            final userRequest =
+                UserRequest.fromJson(jsonDecode(userInfoString!));
 
-                controller.getDetails();
-                controller.isPropertyLoading.value =
-                    AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
-                        !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []);
+            controller.getDetails();
+            controller.isPropertyLoading.value =
+                AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
+                    !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []);
 
-                bookYourServiceController.isCategoryLoading.value =
-                    AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
-                        !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []);
+            bookYourServiceController.isCategoryLoading.value =
+                AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
+                    !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []);
 
-                controller.getTenantApiFunction();
+            controller.getTenantApiFunction();
 
-                if (AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
-                    !AppUtils().checkIsPGRAdmin(userRequest.roles ?? [])) {
-                  controller.getPropertiesApiFunction();
-                  bookYourServiceController.getCategories();
-                }
-              });
-            }, builder: (controller) {
+            if (AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
+                !AppUtils().checkIsPGRAdmin(userRequest.roles ?? [])) {
+              controller.getPropertiesApiFunction();
+              bookYourServiceController.getCategories();
+            }
+          });
+        }, builder: (controller) {
           return WillPopScope(
             onWillPop: () => _willPopCallback(),
             child: SafeArea(
@@ -119,37 +116,47 @@ class HomeScreen extends StatelessWidget {
                                           width: 50,
                                           height: 50,
                                           controller.tenantProfileImage.value,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Image.network(
-                                        ImageAssetsConst.sampleRoomPage,
-                                        width: 120,
-                                        height: 140,
-                                        fit: BoxFit.fill,
-                                      );
-                                    },
-                                    loadingBuilder: (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return Image.network(
+                                              ImageAssetsConst.sampleRoomPage,
+                                              width: 120,
+                                              height: 140,
+                                              fit: BoxFit.fill,
+                                            );
+                                          },
+                                          loadingBuilder: (context, child,
+                                              loadingProgress) {
+                                            if (loadingProgress == null)
+                                              return child;
 
-                                      final total = loadingProgress.expectedTotalBytes;
-                                      final loaded = loadingProgress.cumulativeBytesLoaded;
-                                      final progress = total != null ? loaded / total : null;
+                                            final total = loadingProgress
+                                                .expectedTotalBytes;
+                                            final loaded = loadingProgress
+                                                .cumulativeBytesLoaded;
+                                            final progress = total != null
+                                                ? loaded / total
+                                                : null;
 
-                                      return SizedBox(
-                                        height: 140,
-                                        width: 120,
-                                        child: Center(
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              CircularProgressIndicator(value: progress),
-                                              const SizedBox(height: 8),
-                                              if (progress != null)
-                                                Text('${(progress * 100).toStringAsFixed(0)}%'),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
+                                            return SizedBox(
+                                              height: 140,
+                                              width: 120,
+                                              child: Center(
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    CircularProgressIndicator(
+                                                        value: progress),
+                                                    const SizedBox(height: 8),
+                                                    if (progress != null)
+                                                      Text(
+                                                          '${(progress * 100).toStringAsFixed(0)}%'),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          },
                                         )
                                       : Shimmer.fromColors(
                                           baseColor: Colors.grey[300]!,
@@ -163,8 +170,7 @@ class HomeScreen extends StatelessWidget {
                                 )
                               : ReusableTextWidget(
                                   text: authController.getInitials(
-                                          controller.name.value ??
-                                              '',
+                                          controller.name.value ?? '',
                                           controller.lastName.value) ??
                                       '',
                                   fontSize: 25,
@@ -319,35 +325,43 @@ class PropertyWidget extends StatelessWidget {
                                     topRight: Radius.circular(10.0),
                                   ),
                                   child:
-                                  // (controller.getPropertiesDetails[index]
-                                  //             .tenantimage?.firstOrNull !=
-                                  //         null)
-                                  //     ?
-                                  InkWell(
-                                          onTap: () {
-                                            Get.to(
-                                                () => PropertiesDetailsScreen(
-                                                      propertyImage: controller
-                                                          .getPropertiesDetails[
-                                                      index].imageUrls,
-                                                      address: AppUtils().formatAddress(controller.getPropertiesDetails[index].address),
-                                                      contactNumber: controller
-                                                          .getPropertiesDetails[
-                                                      index]
-                                                          .additionalFields?.fields?.where((a) => a.key == 'contactNo').first.value ??
-                                                          '',
-                                                    ));
-                                          },
-                                          child: ThumbCollage(
-                                            urls: controller
-                                                .getPropertiesDetails[
-                                            index].imageUrls ?? [],
-                                            height: 100,
-                                            width: double.infinity, // or the card’s width
-                                            borderRadius: 10,
-                                            spacing: 2,
-                                          ) ,
-                                        ),
+                                      // (controller.getPropertiesDetails[index]
+                                      //             .tenantimage?.firstOrNull !=
+                                      //         null)
+                                      //     ?
+                                      InkWell(
+                                    onTap: () {
+                                      Get.to(() => PropertiesDetailsScreen(
+                                            propertyImage: controller
+                                                .getPropertiesDetails[index]
+                                                .imageUrls,
+                                            address: AppUtils().formatAddress(
+                                                controller
+                                                    .getPropertiesDetails[index]
+                                                    .address),
+                                            contactNumber: controller
+                                                    .getPropertiesDetails[index]
+                                                    .additionalFields
+                                                    ?.fields
+                                                    ?.where((a) =>
+                                                        a.key == 'contactNo')
+                                                    .first
+                                                    .value ??
+                                                '',
+                                          ));
+                                    },
+                                    child: ThumbCollage(
+                                      urls: controller
+                                              .getPropertiesDetails[index]
+                                              .imageUrls ??
+                                          [],
+                                      height: 100,
+                                      width: double
+                                          .infinity, // or the card’s width
+                                      borderRadius: 10,
+                                      spacing: 2,
+                                    ),
+                                  ),
                                   //     :
                                   // const SizedBox(),
                                 ),
@@ -372,7 +386,8 @@ class PropertyWidget extends StatelessWidget {
                                       left: 10, right: 10),
                                   child: ReusableTextWidget(
                                     maxLines: 2,
-                                    text: AppUtils().formatAddress(controller.getPropertiesDetails[index].address) ,
+                                    text: AppUtils().formatAddress(controller
+                                        .getPropertiesDetails[index].address),
                                   ),
                                 ),
                                 const Spacer(),
@@ -402,15 +417,28 @@ class PropertyWidget extends StatelessWidget {
                                           ),
                                           onPressed: () {
                                             Get.to(() => BookYourService(
-                                                  householdModel: controller.getPropertiesDetails[index],
+                                                  householdModel: controller
+                                                          .getPropertiesDetails[
+                                                      index],
                                                   tenantImage: controller
                                                       .getPropertiesDetails[
-                                                  index].imageUrls,
-                                                  address: AppUtils().formatAddress(controller.getPropertiesDetails[index].address),
+                                                          index]
+                                                      .imageUrls,
+                                                  address: AppUtils()
+                                                      .formatAddress(controller
+                                                          .getPropertiesDetails[
+                                                              index]
+                                                          .address),
                                                   contactNumber: controller
                                                           .getPropertiesDetails[
                                                               index]
-                                                          .additionalFields?.fields?.where((a) => a.key == 'contactNo').first.value ??
+                                                          .additionalFields
+                                                          ?.fields
+                                                          ?.where((a) =>
+                                                              a.key ==
+                                                              'contactNo')
+                                                          .first
+                                                          .value ??
                                                       '',
                                                   // locationID: controller
                                                   //         .getPropertiesDetails[
@@ -525,8 +553,7 @@ class CategoriesTypeWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Sizer(
-      builder: (BuildContext context, Orientation orientation,
-          DeviceType deviceType) {
+      builder: (BuildContext context, Orientation orientation, screenType) {
         return GetBuilder<BookYourServiceController>(builder: (controller) {
           return ListView.builder(
             scrollDirection: Axis.horizontal,
@@ -626,13 +653,15 @@ class OnGoingTask extends StatelessWidget {
     return GetBuilder<HomeScreenController>(
       initState: (_) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          homeScreenController.updateLoadingState();   // will call update(), but now it's safe
-          homeScreenController.getOrdersApiFunction(); // can call update() when done
+          homeScreenController
+              .updateLoadingState(); // will call update(), but now it's safe
+          homeScreenController
+              .getOrdersApiFunction(); // can call update() when done
         });
       },
       builder: (controller) {
-        if (homeScreenController.getOrderDetails.isEmpty ) {
-          return  SizedBox(
+        if (homeScreenController.getOrderDetails.isEmpty) {
+          return SizedBox(
             height: MediaQuery.of(context).size.height / 3,
             child: Center(
               child: ReusableTextWidget(
@@ -719,8 +748,7 @@ class OnGoingTask extends StatelessWidget {
                 return buildOrderItem(controller.acceptedOrders[index]);
               },
             );
-          }
-          else if (status == 'completed') {
+          } else if (status == 'completed') {
             if (controller.completedOrders.isEmpty) {
               return SizedBox(
                 height: Get.height * 0.6,
@@ -742,8 +770,7 @@ class OnGoingTask extends StatelessWidget {
                 return buildOrderItem(controller.completedOrders[index]);
               },
             );
-          }
-          else if (status == 'active') {
+          } else if (status == 'active') {
             if (controller.activeOrders.isEmpty) {
               return SizedBox(
                 height: Get.height * 0.6,
@@ -765,8 +792,7 @@ class OnGoingTask extends StatelessWidget {
                 return buildOrderItem(controller.activeOrders[index]);
               },
             );
-          }
-          else {
+          } else {
             if (controller.todayOrders.isEmpty) {
               return SizedBox(
                 height: Get.height * 0.6,
@@ -788,9 +814,9 @@ class OnGoingTask extends StatelessWidget {
               },
             );
           }
-        }
-        else {
-          if (controller.createdOrders.isEmpty) // if (controller.acceptedOrders.isEmpty)
+        } else {
+          if (controller
+              .createdOrders.isEmpty) // if (controller.acceptedOrders.isEmpty)
           {
             return SizedBox(
               height: MediaQuery.of(context).size.height / 3,
@@ -806,9 +832,11 @@ class OnGoingTask extends StatelessWidget {
             height: MediaQuery.of(context).size.height / 4,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: controller.createdOrders.length, // controller.acceptedOrders.length,
+              itemCount: controller
+                  .createdOrders.length, // controller.acceptedOrders.length,
               itemBuilder: (context, index) {
-                return buildOrderItem(controller.createdOrders[index]); // buildOrderItem(controller.acceptedOrders[index]);
+                return buildOrderItem(controller.createdOrders[
+                    index]); // buildOrderItem(controller.acceptedOrders[index]);
               },
             ),
           );
@@ -823,27 +851,46 @@ class OnGoingTask extends StatelessWidget {
         /// Accepted, Completed, Pending
         try {
           Get.to(() => OrderDetailScreen(
-                tasks: (order.service?.description ?? '').toString().trim().isNotEmpty ? [order.service?.description ?? ''] : [],
+                tasks: (order.service?.description ?? '')
+                        .toString()
+                        .trim()
+                        .isNotEmpty
+                    ? [order.service?.description ?? '']
+                    : [],
                 suburb: order.service?.tenantId ?? '',
                 address: AppUtils().formatAddress(order.service?.address),
                 tenantName: order.service?.user?.name ?? '',
                 propertyImage: (order.imageUrls ?? []).isNotEmpty
-                ? order.imageUrls
+                    ? order.imageUrls
                     : [ImageAssetsConst.sampleRoomPage],
-                date: AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime) ,
-                tenantContactName: (jsonDecode((order.service?.additionalDetail ?? '{}').toString()) as Map?)?['household']?['contactNo'],
+                date: AppUtils.timeStampToDate(
+                    order.service?.auditDetails?.createdTime),
+                tenantContactName: (jsonDecode(
+                        (order.service?.additionalDetail ?? '{}').toString())
+                    as Map?)?['household']?['contactNo'],
                 type: AppUtils().getOrderStatus(order),
                 orderID: order.service?.serviceRequestId ?? '',
-                tenantLatitude: (order.service?.address?.latitude ?? 'N/A').toString() ,
-                tenantLongitude: (order.service?.address?.longitude ?? 'N/A').toString(),
+                tenantLatitude:
+                    (order.service?.address?.latitude ?? 'N/A').toString(),
+                tenantLongitude:
+                    (order.service?.address?.longitude ?? 'N/A').toString(),
                 orderImages: [ImageAssetsConst.plotRolLogo],
                 staffMobileNumber: '<Staff Contact No>',
                 staffLocation: '<Staff Address>',
                 staffName: '<Staff Name>',
                 order: order,
-                startDate: AppUtils().getOrderStatus(order) == "created" ? AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime) : '',
-                acceptedDate: AppUtils().getOrderStatus(order) == "accepted" ? AppUtils.timeStampToDate(order.service?.auditDetails?.lastModifiedTime): '',
-                completedDate: AppUtils().getOrderStatus(order) == "completed" ? AppUtils.timeStampToDate(order.service?.auditDetails?.lastModifiedTime): '',
+                startDate: AppUtils().getOrderStatus(order) == "created"
+                    ? AppUtils.timeStampToDate(
+                        order.service?.auditDetails?.createdTime)
+                    : '',
+                acceptedDate: AppUtils().getOrderStatus(order) == "accepted"
+                    ? AppUtils.timeStampToDate(
+                        order.service?.auditDetails?.lastModifiedTime)
+                    : '',
+                completedDate: AppUtils().getOrderStatus(order) == "completed"
+                    ? AppUtils.timeStampToDate(
+                        order.service?.auditDetails?.lastModifiedTime)
+                    : '',
               ));
         } on Exception catch (e, s) {
           print(s);
@@ -870,20 +917,19 @@ class OnGoingTask extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    height: 60,
-                    width: 60,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10.0),
-                      border: Border.all(color: Colors.grey, width: 0.1),
-                    ),
-                    child: ThumbCollage(
-                      urls: order.imageUrls ?? [],
-                      height: 100,
-                      width: double.infinity, // or the card’s width
-                      borderRadius: 10,
-                      spacing: 2,
-                    )
-                  ),
+                      height: 60,
+                      width: 60,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10.0),
+                        border: Border.all(color: Colors.grey, width: 0.1),
+                      ),
+                      child: ThumbCollage(
+                        urls: order.imageUrls ?? [],
+                        height: 100,
+                        width: double.infinity, // or the card’s width
+                        borderRadius: 10,
+                        spacing: 2,
+                      )),
                   const SizedBox(width: 5),
                   Column(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -911,7 +957,8 @@ class OnGoingTask extends StatelessWidget {
                           SizedBox(
                             width: 120,
                             child: ReusableTextWidget(
-                              text: AppUtils().formatAddress(order.service?.address),
+                              text: AppUtils()
+                                  .formatAddress(order.service?.address),
                               maxLines: 4,
                             ),
                           ),
@@ -922,7 +969,10 @@ class OnGoingTask extends StatelessWidget {
                   ),
                   const Spacer(),
                   Container(
-                    decoration: _getDecorationBasedOnStatus(AppUtils().getOrderStatus(order,)),
+                    decoration:
+                        _getDecorationBasedOnStatus(AppUtils().getOrderStatus(
+                      order,
+                    )),
                     child: Padding(
                       padding: const EdgeInsets.all(4),
                       child: Row(
@@ -950,14 +1000,15 @@ class OnGoingTask extends StatelessWidget {
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     margin: const EdgeInsets.only(right: 4),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade200,
                       borderRadius: BorderRadius.circular(5),
                     ),
-                    child: ReusableTextWidget(text: order.service?.description ?? '')),
+                    child: ReusableTextWidget(
+                        text: order.service?.description ?? '')),
               ),
               const Spacer(),
               const Divider(),
@@ -970,7 +1021,8 @@ class OnGoingTask extends StatelessWidget {
                   // ),
                   // const SizedBox(width: 3),
                   ReusableTextWidget(
-                    text: 'Order Date : ${AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime) }',
+                    text:
+                        'Order Date : ${AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime)}',
                     fontSize: 13,
                   ),
                 ],
@@ -1088,8 +1140,6 @@ class OnGoingTask extends StatelessWidget {
       return ''; // Return an empty string if parsing fails
     }
   }
-
-
 }
 
 BoxDecoration _getDecorationBasedOnStatus(String? status) {
@@ -1126,9 +1176,10 @@ BoxDecoration _getDecorationBasedOnStatus(String? status) {
       );
   }
 }
+
 List<Widget> _widgetOptionsNearle() => <Widget>[
-  HomeScreen(),
-  OrderStatusScreen(),
-  const OngoingTaskScreen(),
-  Profile(),
-];
+      HomeScreen(),
+      OrderStatusScreen(),
+      const OngoingTaskScreen(),
+      Profile(),
+    ];

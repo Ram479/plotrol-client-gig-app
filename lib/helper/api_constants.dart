@@ -1,3 +1,5 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class ApiConstants {
 
   static String mainDev = 'dev';
@@ -15,8 +17,11 @@ class ApiConstants {
   static String login = '${host}/user/oauth/token';
 
   static String sendOtp = '/user-otp/v1/_send';
+  static String forgotPassword = '${host}/user/password/forgot';
+  static String resetPassword = '${host}/user/password/reset';
   static String createRequester = '/egov-hrms/employees/_create';
   static String createCitizen = '/user/citizen/_create';
+  static String createHelpdeskUser = '/admin/helpdesk-users/_create';
 
   static String individualSearch = '/individual/v1/_search';
   static String memberSearch = '/household/member/v1/_search';
@@ -44,7 +49,11 @@ class ApiConstants {
 
   static String getTenant = '';
 
-  static String host = 'https://health-demo.digit.org';
+  // Host is loaded from .env (API_HOST key)
+  // Android emulator  → http://10.0.2.2:8080
+  // Real device (WiFi) → http://<your-PC-LAN-IP>:8080
+  static String get host => dotenv.env['API_HOST'] ?? 'http://10.0.2.2:8080';
+  static String get w3wApiKey => dotenv.env['W3W_API_KEY'] ?? '';
   /// authentication
 
   static String fileUpload = '/filestore/v1/files';

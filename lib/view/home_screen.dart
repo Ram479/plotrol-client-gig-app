@@ -27,19 +27,30 @@ import 'all_properties_dart.dart';
 import 'book_your_service.dart';
 import 'view_all_orders_screen.dart';
 
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const _cream       = Color(0xFFF7F3EE);
+const _parchment   = Color(0xFFEFE9DF);
+const _sand        = Color(0xFFE4DAC8);
+const _espresso    = Color(0xFF1C1510);
+const _walnut      = Color(0xFF3D2B1F);
+const _sienna      = Color(0xFFB85C38);
+const _siennaLight = Color(0x1AB85C38);
+const _siennaFade  = Color(0x08B85C38);
+const _sage        = Color(0xFF6B8C6E);
+const _sageSoft    = Color(0x1A6B8C6E);
+const _amber       = Color(0xFFD4830A);
+const _amberSoft   = Color(0x1AD4830A);
+const _steel       = Color(0xFF8C8480);
+const _dividerLine = Color(0xFFDDD5C8);
+// ─────────────────────────────────────────────────────────────────────────────
+
 class HomeScreen extends StatelessWidget {
   HomeScreen({super.key});
 
   final HomeScreenController controller = Get.put(HomeScreenController());
-
-  final AuthenticationController authController =
-      Get.put(AuthenticationController());
-
-  final CreateAccountController createAccountController =
-      Get.put(CreateAccountController());
-
-  final BookYourServiceController bookYourServiceController =
-      Get.put(BookYourServiceController());
+  final AuthenticationController authController = Get.put(AuthenticationController());
+  final CreateAccountController createAccountController = Get.put(CreateAccountController());
+  final BookYourServiceController bookYourServiceController = Get.put(BookYourServiceController());
 
   DateTime? currentBackPressTime;
 
@@ -58,607 +69,553 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Sizer(
-      builder: (context, orientation, deviceType) {
-        return GetBuilder<HomeScreenController>(initState: (_) async {
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
-            final prefs = await SharedPreferences.getInstance();
+    return Sizer(builder: (context, orientation, deviceType) {
+      return GetBuilder<HomeScreenController>(initState: (_) async {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          final prefs = await SharedPreferences.getInstance();
+          if (prefs.getString('access_token') == null) {
+            Get.offAll(() => LoginScreen());
+            return;
+          }
+          final userInfoString = prefs.getString('userInfo');
+          final userRequest = UserRequest.fromJson(jsonDecode(userInfoString!));
 
-            if (prefs.getString('access_token') == null) {
-              // Navigation during build can also trigger the same error
-              Get.offAll(() => LoginScreen());
-              return;
-            }
+          controller.getDetails();
+          controller.isPropertyLoading.value =
+              AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
+                  !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []);
 
-            final userInfoString = prefs.getString('userInfo');
-            final userRequest =
-                UserRequest.fromJson(jsonDecode(userInfoString!));
+          bookYourServiceController.isCategoryLoading.value =
+              AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
+                  !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []);
 
-            controller.getDetails();
-            controller.isPropertyLoading.value =
-                AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
-                    !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []);
+          controller.getTenantApiFunction();
+          controller.getOrdersApiFunction();
 
-            bookYourServiceController.isCategoryLoading.value =
-                AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
-                    !AppUtils().checkIsPGRAdmin(userRequest.roles ?? []);
+          if (AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
+              !AppUtils().checkIsPGRAdmin(userRequest.roles ?? [])) {
+            controller.getPropertiesApiFunction();
+            bookYourServiceController.getCategories();
+          }
+        });
+      }, builder: (controller) {
+        return WillPopScope(
+          onWillPop: () => _willPopCallback(),
+          child: SafeArea(
+            child: Scaffold(
+              backgroundColor: _cream,
+              body: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _HomeHeader(controller: controller, authController: authController),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        _EyebrowLabel(text: 'WHAT DO YOU NEED?'),
+                        const SizedBox(height: 8),
+                        SizedBox(height: 108, child: CategoriesTypeWidget()),
 
-            controller.getTenantApiFunction();
+                        const SizedBox(height: 28),
+                        _DashedRule(),
+                        const SizedBox(height: 24),
 
-            if (AppUtils().checkIsHousehold(userRequest.roles ?? []) &&
-                !AppUtils().checkIsPGRAdmin(userRequest.roles ?? [])) {
-              controller.getPropertiesApiFunction();
-              bookYourServiceController.getCategories();
-            }
-          });
-        }, builder: (controller) {
-          return WillPopScope(
-            onWillPop: () => _willPopCallback(),
-            child: SafeArea(
-              child: Scaffold(
-                backgroundColor: Colors.white,
-                appBar: PreferredSize(
-                  preferredSize: const Size.fromHeight(70),
-                  child: AppBar(
-                    backgroundColor: Colors.white,
-                    automaticallyImplyLeading: false,
-                    title: Row(
-                      children: [
-                        CircleAvatar(
-                          minRadius: 25,
-                          maxRadius: 25,
-                          backgroundColor: Colors.grey.withOpacity(0.4),
-                          child: (controller.profileImage.value.isNotEmpty)
-                              ? ClipOval(
-                                  child: !controller.isTenantDetailLoading.value
-                                      ? Image.network(
-                                          fit: BoxFit.cover,
-                                          width: 50,
-                                          height: 50,
-                                          controller.tenantProfileImage.value,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return Image.network(
-                                              ImageAssetsConst.sampleRoomPage,
-                                              width: 120,
-                                              height: 140,
-                                              fit: BoxFit.fill,
-                                            );
-                                          },
-                                          loadingBuilder: (context, child,
-                                              loadingProgress) {
-                                            if (loadingProgress == null)
-                                              return child;
-
-                                            final total = loadingProgress
-                                                .expectedTotalBytes;
-                                            final loaded = loadingProgress
-                                                .cumulativeBytesLoaded;
-                                            final progress = total != null
-                                                ? loaded / total
-                                                : null;
-
-                                            return SizedBox(
-                                              height: 140,
-                                              width: 120,
-                                              child: Center(
-                                                child: Column(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    CircularProgressIndicator(
-                                                        value: progress),
-                                                    const SizedBox(height: 8),
-                                                    if (progress != null)
-                                                      Text(
-                                                          '${(progress * 100).toStringAsFixed(0)}%'),
-                                                  ],
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        )
-                                      : Shimmer.fromColors(
-                                          baseColor: Colors.grey[300]!,
-                                          highlightColor: Colors.grey[100]!,
-                                          child: Container(
-                                            width: 50,
-                                            height: 50,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                )
-                              : ReusableTextWidget(
-                                  text: authController.getInitials(
-                                          controller.name.value ?? '',
-                                          controller.lastName.value) ??
-                                      '',
-                                  fontSize: 25,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                        _BlockHeader(
+                          title: 'Ongoing\nTasks',
+                          actionLabel: 'All tasks →',
+                          onAction: () => Get.to(() => ViewAllOrdersScreen()),
+                          show: controller.createdOrders.isNotEmpty,
                         ),
-                        SizedBox(
-                          width: 2.h,
+                        const SizedBox(height: 12),
+                        OnGoingTask(status: 'created', maxItems: 5),
+
+                        const SizedBox(height: 28),
+                        _DashedRule(),
+                        const SizedBox(height: 24),
+
+                        _BlockHeader(
+                          title: 'Your\nProperties',
+                          actionLabel: 'See all →',
+                          onAction: () => Get.to(() => AllProperties()),
+                          show: controller.getPropertiesDetails.isNotEmpty,
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ReusableTextWidget(
-                              text:
-                                  'Hi ${controller.tenantFirstName.toUpperCase()}',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                            SizedBox(
-                              height: 1.h,
-                            ),
-                            const ReusableTextWidget(
-                              text: 'Do you need any service?',
-                            ),
-                          ],
-                        ),
-                      ],
+                        const SizedBox(height: 12),
+                        PropertyWidget(),
+                      ]),
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+        );
+      });
+    });
+  }
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+class _HomeHeader extends StatelessWidget {
+  final HomeScreenController controller;
+  final AuthenticationController authController;
+  const _HomeHeader({required this.controller, required this.authController});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: _cream,
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _Avatar(controller: controller, authController: authController),
+              const Spacer(),
+              GestureDetector(
+                onTap: () {},
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _parchment,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _dividerLine, width: 1),
+                  ),
+                  child: const Icon(Icons.notifications_outlined, size: 18, color: _walnut),
                 ),
-                body: Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const ReusableTextWidget(
-                          text: 'Book Your Services',
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        SizedBox(
-                          height: 1.h,
-                        ),
-                        SizedBox(height: 120, child: CategoriesTypeWidget()),
-                        Row(
-                          children: [
-                            const ReusableTextWidget(
-                              text: 'Ongoing Task',
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                            const Spacer(),
-                            InkWell(
-                              onTap: () {
-                                Get.to(() => ViewAllOrdersScreen());
-                              },
-                              child: (controller.createdOrders.isNotEmpty)
-                                  ? const ReusableTextWidget(
-                                      text: 'View All',
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      isUnderText: TextDecoration.underline,
-                                    )
-                                  : const SizedBox(),
-                            ),
-                          ],
-                        ),
-                        SizedBox(
-                          height: 1.h,
-                        ),
-                        OnGoingTask(
-                          status: 'created',
-                          maxItems: 5,
-                        ),
-                        SizedBox(
-                          height: 2.5.h,
-                        ),
-                        Row(
-                          children: [
-                            const ReusableTextWidget(
-                              text: 'Your Properties',
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                            const Spacer(),
-                            InkWell(
-                              onTap: () {
-                                Get.to(() => AllProperties());
-                              },
-                              child:
-                                  (controller.getPropertiesDetails.isNotEmpty)
-                                      ? const ReusableTextWidget(
-                                          text: 'See All',
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                          isUnderText: TextDecoration.underline,
-                                        )
-                                      : const SizedBox(),
-                            ),
-                          ],
-                        ),
-                        SizedBox(
-                          height: 1.h,
-                        ),
-                        PropertyWidget(),
-                      ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hello,',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: _steel,
+                        letterSpacing: 0.3,
+                      ),
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      controller.tenantFirstName.value,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: _espresso,
+                        letterSpacing: -0.5,
+                        height: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _sienna,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Ready to book?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-            ),
-          );
-        });
-      },
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(height: 1, color: _dividerLine),
+        ],
+      ),
     );
   }
 }
 
-/// Property widget
-class PropertyWidget extends StatelessWidget {
-  PropertyWidget({
-    super.key,
-  });
+// ── Avatar ────────────────────────────────────────────────────────────────────
+class _Avatar extends StatelessWidget {
+  final HomeScreenController controller;
+  final AuthenticationController authController;
+  const _Avatar({required this.controller, required this.authController});
 
-  final HomeScreenController homeScreenController =
-      Get.put(HomeScreenController());
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _sand,
+        border: Border.all(color: _sienna, width: 2),
+      ),
+      child: ClipOval(
+        child: controller.profileImage.value.isNotEmpty
+            ? !controller.isTenantDetailLoading.value
+                ? Image.network(
+                    controller.tenantProfileImage.value,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) => _initials(controller, authController),
+                    loadingBuilder: (c, child, progress) =>
+                        progress == null ? child : _shimmerCircle(48),
+                  )
+                : _shimmerCircle(48)
+            : _initials(controller, authController),
+      ),
+    );
+  }
+}
+
+Widget _initials(HomeScreenController c, AuthenticationController a) => Center(
+      child: Text(
+        a.getInitials(c.name.value ?? '', c.lastName.value) ?? '',
+        style: const TextStyle(color: _sienna, fontSize: 16, fontWeight: FontWeight.w800),
+      ),
+    );
+
+Widget _shimmerCircle(double size) => Shimmer.fromColors(
+      baseColor: _sand,
+      highlightColor: _cream,
+      child: Container(width: size, height: size, color: _sand),
+    );
+
+// ── Typography helpers ────────────────────────────────────────────────────────
+class _EyebrowLabel extends StatelessWidget {
+  final String text;
+  const _EyebrowLabel({required this.text});
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: _sienna,
+          letterSpacing: 2,
+        ),
+      );
+}
+
+class _BlockHeader extends StatelessWidget {
+  final String title;
+  final String actionLabel;
+  final VoidCallback onAction;
+  final bool show;
+  const _BlockHeader({required this.title, required this.actionLabel, required this.onAction, required this.show});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: _espresso,
+                letterSpacing: -0.8,
+                height: 1.1,
+              ),
+            ),
+          ),
+          if (show)
+            GestureDetector(
+              onTap: onAction,
+              child: const Text(
+                'View all →',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _sienna),
+              ),
+            ),
+        ],
+      );
+}
+
+class _DashedRule extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Row(
+        children: List.generate(
+          30,
+          (i) => Expanded(
+            child: Container(
+              height: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 1),
+              color: i % 2 == 0 ? _sand : Colors.transparent,
+            ),
+          ),
+        ),
+      );
+}
+
+// ── Property Widget ───────────────────────────────────────────────────────────
+class PropertyWidget extends StatelessWidget {
+  PropertyWidget({super.key});
+  final HomeScreenController homeScreenController = Get.put(HomeScreenController());
 
   @override
   Widget build(BuildContext context) {
     return GetBuilder<HomeScreenController>(builder: (controller) {
-      return (controller.getPropertiesDetails.isEmpty &&
-              !controller.isPropertyLoading.value)
-          ? const SizedBox(
-              height: 150,
-              child: Center(
-                child: ReusableTextWidget(
-                  text: 'No data Found add your properties',
-                  fontSize: 15,
-                  // fontWeight: FontWeight.w700,
+      if (controller.getPropertiesDetails.isEmpty && !controller.isPropertyLoading.value) {
+        return _EmptyCard(icon: Icons.home_work_outlined, label: 'No properties yet');
+      }
+      return SizedBox(
+        height: 260,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: controller.getPropertiesDetails.length,
+          itemBuilder: (context, index) {
+            if (controller.isPropertyLoading.value) return _shimmerPropertyCard();
+            final prop = controller.getPropertiesDetails[index];
+            final notes = prop.additionalFields?.fields?.where((a) => a.key == 'notes').firstOrNull?.value ?? '';
+            final contactNo = prop.additionalFields?.fields?.where((a) => a.key == 'contactNo').firstOrNull?.value ?? '';
+
+            return GestureDetector(
+              onTap: () => Get.to(() => PropertiesDetailsScreen(
+                    propertyImage: prop.imageUrls,
+                    address: AppUtils().formatAddress(prop.address),
+                    contactNumber: contactNo,
+                  )),
+              child: Container(
+                width: 190,
+                margin: const EdgeInsets.only(right: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: _dividerLine),
+                  boxShadow: [
+                    BoxShadow(color: _espresso.withOpacity(0.07), blurRadius: 20, offset: const Offset(0, 6)),
+                  ],
                 ),
-              ),
-            )
-          : SizedBox(
-              height: 240,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: controller.getPropertiesDetails.length,
-                itemBuilder: (context, index) {
-                  return controller.isPropertyLoading.value
-                      ? _buildShimmerCard()
-                      : Card(
-                          color: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10.0),
-                              side: const BorderSide(
-                                color: Colors.grey,
-                                width: 0.3,
-                              ) // Adjust radius
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Image section - Fixed to fill container without gaps
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                      child: SizedBox(
+                        height: 125,
+                        width: double.infinity,
+                        child: ThumbCollage(
+                          urls: prop.imageUrls ?? [],
+                          height: 125,
+                          width: double.infinity,
+                          borderRadius: 24,
+                          spacing: 2,
+                        ),
+                      ),
+                    ),
+                    
+                    // Content section with minimal spacing
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            notes.isNotEmpty ? notes : 'My Property',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: _espresso,
+                              letterSpacing: -0.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            AppUtils().formatAddress(prop.address),
+                            style: const TextStyle(fontSize: 12, color: _steel, height: 1.4),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: () => Get.to(() => BookYourService(
+                                  householdModel: prop,
+                                  tenantImage: prop.imageUrls,
+                                  address: AppUtils().formatAddress(prop.address),
+                                  contactNumber: contactNo,
+                                )),
+                            child: Container(
+                              height: 36,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: _espresso,
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                          child: SizedBox(
-                            height: 150,
-                            width: 180,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(10.0),
-                                    topRight: Radius.circular(10.0),
-                                  ),
-                                  child:
-                                      // (controller.getPropertiesDetails[index]
-                                      //             .tenantimage?.firstOrNull !=
-                                      //         null)
-                                      //     ?
-                                      InkWell(
-                                    onTap: () {
-                                      Get.to(() => PropertiesDetailsScreen(
-                                            propertyImage: controller
-                                                .getPropertiesDetails[index]
-                                                .imageUrls,
-                                            address: AppUtils().formatAddress(
-                                                controller
-                                                    .getPropertiesDetails[index]
-                                                    .address),
-                                            contactNumber: controller
-                                                    .getPropertiesDetails[index]
-                                                    .additionalFields
-                                                    ?.fields
-                                                    ?.where((a) =>
-                                                        a.key == 'contactNo')
-                                                    .first
-                                                    .value ??
-                                                '',
-                                          ));
-                                    },
-                                    child: ThumbCollage(
-                                      urls: controller
-                                              .getPropertiesDetails[index]
-                                              .imageUrls ??
-                                          [],
-                                      height: 100,
-                                      width: double
-                                          .infinity, // or the card’s width
-                                      borderRadius: 10,
-                                      spacing: 2,
-                                    ),
-                                  ),
-                                  //     :
-                                  // const SizedBox(),
+                              child: const Text(
+                                'Book Service',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2,
                                 ),
-                                const SizedBox(
-                                  height: 10,
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                      left: 10, right: 10),
-                                  child: ReusableTextWidget(
-                                    text:
-                                        '${controller.getPropertiesDetails[index].additionalFields?.fields?.where((a) => a.key == 'notes').first.value}',
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(
-                                  height: 5,
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                      left: 10, right: 10),
-                                  child: ReusableTextWidget(
-                                    maxLines: 2,
-                                    text: AppUtils().formatAddress(controller
-                                        .getPropertiesDetails[index].address),
-                                  ),
-                                ),
-                                const Spacer(),
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                      left: 10, right: 10, bottom: 10),
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                        height: 30,
-                                        child: ElevatedButton(
-                                          style: ButtonStyle(
-                                            backgroundColor:
-                                                WidgetStateProperty.all(
-                                                    Colors.black),
-                                            foregroundColor:
-                                                WidgetStateProperty.all(
-                                                    Colors.white),
-                                            shape: WidgetStateProperty.all<
-                                                RoundedRectangleBorder>(
-                                              RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                        5), // Adjust radius
-                                              ),
-                                            ),
-                                          ),
-                                          onPressed: () {
-                                            Get.to(() => BookYourService(
-                                                  householdModel: controller
-                                                          .getPropertiesDetails[
-                                                      index],
-                                                  tenantImage: controller
-                                                      .getPropertiesDetails[
-                                                          index]
-                                                      .imageUrls,
-                                                  address: AppUtils()
-                                                      .formatAddress(controller
-                                                          .getPropertiesDetails[
-                                                              index]
-                                                          .address),
-                                                  contactNumber: controller
-                                                          .getPropertiesDetails[
-                                                              index]
-                                                          .additionalFields
-                                                          ?.fields
-                                                          ?.where((a) =>
-                                                              a.key ==
-                                                              'contactNo')
-                                                          .first
-                                                          .value ??
-                                                      '',
-                                                  // locationID: controller
-                                                  //         .getPropertiesDetails[
-                                                  //             index]
-                                                  //         .locationid ??
-                                                  //     0,
-                                                ));
-                                          },
-                                          child: const ReusableTextWidget(
-                                            text: 'BOOK SERVICE',
-                                          ),
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      // const Icon(
-                                      //   size: 20,
-                                      //   Icons.edit,
-                                      // ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
-                        );
-                },
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
+          },
+        ),
+      );
     });
   }
 
-  Widget _buildShimmerCard() {
-    return Card(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        side: const BorderSide(color: Colors.grey, width: 0.3),
-      ),
-      child: Shimmer.fromColors(
-        baseColor: Colors.grey[300]!,
-        highlightColor: Colors.grey[100]!,
-        child: SizedBox(
-          height: 150,
-          width: 180,
-          // Placeholder structure similar to your actual card
+  Widget _shimmerPropertyCard() => Shimmer.fromColors(
+        baseColor: _parchment,
+        highlightColor: _cream,
+        child: Container(
+          width: 190,
+          margin: const EdgeInsets.only(right: 14),
+          decoration: BoxDecoration(color: _parchment, borderRadius: BorderRadius.circular(24)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(10.0),
-                    topRight: Radius.circular(10.0),
-                  ),
-                ),
-                height: 100,
-                width: Get.width,
+                height: 125,
+                width: double.infinity,
+                color: _sand,
               ),
-              const SizedBox(height: 10),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Container(
-                  height: 16,
-                  width: 120,
-                  color: Colors.grey[300],
-                ),
-              ),
-              const SizedBox(height: 5),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Container(
-                  height: 32,
-                  width: 160,
-                  color: Colors.grey[300],
-                ),
-              ),
-              const Spacer(),
-              Padding(
-                padding: const EdgeInsets.only(left: 10, right: 10, bottom: 10),
-                child: Row(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      height: 30,
-                      width: 100,
-                      color: Colors.grey[300],
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.edit,
-                      size: 20,
-                      color: Colors.grey[300],
-                    ),
+                    Container(height: 15, width: 100, color: _sand),
+                    const SizedBox(height: 6),
+                    Container(height: 12, width: 140, color: _sand),
+                    const SizedBox(height: 20),
+                    Container(height: 36, color: _sand),
                   ],
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
+      );
 }
 
-/// Category Widget
+// ── Categories Widget ─────────────────────────────────────────────────────────
 class CategoriesTypeWidget extends StatelessWidget {
   CategoriesTypeWidget({super.key});
+  final BookYourServiceController controller = Get.put(BookYourServiceController());
 
-  final BookYourServiceController controller =
-      Get.put(BookYourServiceController());
+  static const _accentColors = [
+    Color(0xFFB85C38),
+    Color(0xFF6B8C6E),
+    Color(0xFFD4830A),
+    Color(0xFF7A6552),
+    Color(0xFF4A7FA5),
+    Color(0xFF9C6B3C),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Sizer(
-      builder: (BuildContext context, Orientation orientation, screenType) {
-        return GetBuilder<BookYourServiceController>(builder: (controller) {
-          return ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: 1,
-            itemBuilder: (context, index) {
-              return controller.isCategoryLoading.value
-                  ? Shimmer.fromColors(
-                      baseColor: Colors.grey[300]!,
-                      highlightColor: Colors.grey[100]!,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: CircleAvatar(
-                              maxRadius: 40,
-                              minRadius: 40,
-                              backgroundColor: Colors.grey[300]!,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          ClipRRect(
-                            borderRadius:
-                                const BorderRadius.all(Radius.circular(10)),
-                            child: Container(
-                              width: 80,
-                              height: 20,
-                              color: Colors.grey[300]!,
-                            ),
-                          ),
-                        ],
+    return GetBuilder<BookYourServiceController>(builder: (controller) {
+      return ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: controller.listOfCategories.length,
+        itemBuilder: (context, index) {
+          if (controller.isCategoryLoading.value) {
+            return Shimmer.fromColors(
+              baseColor: _parchment,
+              highlightColor: _cream,
+              child: Container(
+                width: 74,
+                margin: const EdgeInsets.only(right: 14),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(width: 62, height: 62, decoration: const BoxDecoration(color: _sand, shape: BoxShape.circle)),
+                    const SizedBox(height: 6),
+                    Container(width: 50, height: 8, color: _sand),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final cat = controller.listOfCategories[index];
+          final accent = _accentColors[index % _accentColors.length];
+
+          return GestureDetector(
+            onTap: () => Get.to(() => AllProperties(
+                  selectedCategory: cat.categoryname ?? '',
+                  isFromCategory: true,
+                )),
+            child: Container(
+              width: 74,
+              margin: const EdgeInsets.only(right: 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 62,
+                    height: 62,
+                    decoration: BoxDecoration(
+                      color: accent.withOpacity(0.10),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: accent.withOpacity(0.28), width: 1.5),
+                    ),
+                    child: Center(
+                      child: Image.asset(
+                        cat.serviceimage ?? '',
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.contain,
+                        errorBuilder: (c, e, s) => Icon(Icons.build_outlined, size: 26, color: accent),
                       ),
-                    )
-                  : InkWell(
-                      onTap: () {
-                        Get.to(() => AllProperties(
-                              selectedCategory: controller
-                                      .listOfCategories[index].categoryname ??
-                                  '',
-                              isFromCategory: true,
-                            ));
-                      },
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            margin:
-                                const EdgeInsets.symmetric(horizontal: 12.0),
-                            child: CircleAvatar(
-                              backgroundColor: Colors.grey[300],
-                              maxRadius: 40,
-                              minRadius: 40,
-                              backgroundImage: AssetImage(
-                                controller
-                                        .listOfCategories[index].serviceimage ??
-                                    '',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          ReusableTextWidget(
-                            text: controller
-                                    .listOfCategories[index].categoryname ??
-                                '',
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ],
-                      ),
-                    );
-            },
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    cat.categoryname ?? '',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _walnut, height: 1.2),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
           );
-        });
-      },
-    );
+        },
+      );
+    });
   }
 }
 
-/// OnGoing Task widget
+// ── OnGoing Task Widget ───────────────────────────────────────────────────────
 class OnGoingTask extends StatelessWidget {
   final bool isVerticalScrollable;
   final bool isForStatusScreen;
   final String status;
   final int? maxItems;
 
-  OnGoingTask({
+  const OnGoingTask({
     super.key,
     this.isVerticalScrollable = false,
     this.isForStatusScreen = false,
@@ -666,224 +623,106 @@ class OnGoingTask extends StatelessWidget {
     this.maxItems,
   });
 
-  final HomeScreenController homeScreenController =
-      Get.put(HomeScreenController());
-
   @override
   Widget build(BuildContext context) {
+    final HomeScreenController homeScreenController = Get.put(HomeScreenController());
     return GetBuilder<HomeScreenController>(
       initState: (_) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          homeScreenController
-              .updateLoadingState(); // will call update(), but now it's safe
-          homeScreenController
-              .getOrdersApiFunction(); // can call update() when done
+          homeScreenController.updateLoadingState();
+          homeScreenController.getOrdersApiFunction();
         });
       },
       builder: (controller) {
-        if (homeScreenController.getOrderDetails.isEmpty) {
-          return SizedBox(
-            height: MediaQuery.of(context).size.height / 3,
-            child: Center(
-              child: ReusableTextWidget(
-                text: 'No Task Found',
-                fontSize: 15,
-              ),
-            ),
-          );
-        }
-
         if (homeScreenController.isOrderLoading.value) {
-          return SizedBox(
-            height: MediaQuery.of(context).size.height / 3,
-            child: buildShimmerLoader(),
-          );
+          return SizedBox(height: 230, child: buildShimmerLoader());
+        }
+        if (homeScreenController.getOrderDetails.isEmpty) {
+          return _EmptyCard(icon: Icons.task_alt_outlined, label: 'No ongoing tasks');
         }
 
         if (isVerticalScrollable) {
           if (status == 'created') {
-            if (controller.createdOrders.isEmpty) {
-              return SizedBox(
-                height: Get.height * 0.6,
-                child: const Center(
-                  child: ReusableTextWidget(
-                    text: 'No Created Orders Found ☹',
-                    fontSize: 15,
-                  ),
-                ),
-              );
-            }
+            final orders = isForStatusScreen ? controller.todayCreatedOrders : controller.createdOrders;
+            if (orders.isEmpty) return _EmptyCard(icon: Icons.inbox_outlined, label: 'No created orders');
             return ListView.builder(
-              physics: isForStatusScreen
-                  ? null
-                  : const NeverScrollableScrollPhysics(),
+              physics: isForStatusScreen ? null : const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
-              itemCount: maxItems != null
-                  ? (controller.createdOrders.length > maxItems!
-                      ? maxItems!
-                      : controller.createdOrders.length)
-                  : controller.createdOrders.length,
-              itemBuilder: (context, index) {
-                return buildOrderItem(controller.createdOrders[index]);
-              },
+              itemCount: maxItems != null ? (orders.length > maxItems! ? maxItems! : orders.length) : orders.length,
+              itemBuilder: (context, index) => buildOrderItem(orders[index]),
             );
           }
           if (status == 'pending') {
-            if (controller.pendingOrders.isEmpty) {
-              return SizedBox(
-                height: Get.height * 0.6,
-                child: const Center(
-                  child: ReusableTextWidget(
-                    text: 'No Pending Orders Found ☹',
-                    fontSize: 15,
-                  ),
-                ),
-              );
-            }
+            if (controller.pendingOrders.isEmpty) return _EmptyCard(icon: Icons.pending_actions_outlined, label: 'No pending orders');
             return ListView.builder(
-              physics: isForStatusScreen
-                  ? null
-                  : const NeverScrollableScrollPhysics(),
+              physics: isForStatusScreen ? null : const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
               itemCount: controller.pendingOrders.length,
-              itemBuilder: (context, index) {
-                return buildOrderItem(controller.pendingOrders[index]);
-              },
+              itemBuilder: (context, index) => buildOrderItem(controller.pendingOrders[index]),
             );
           }
           if (status == 'accepted') {
-            if (controller.acceptedOrders.isEmpty) {
-              return SizedBox(
-                height: Get.height * 0.6,
-                child: const Center(
-                  child: ReusableTextWidget(
-                    text: 'No Accepted Orders Found ☹',
-                    fontSize: 15,
-                  ),
-                ),
-              );
-            }
+            if (controller.acceptedOrders.isEmpty) return _EmptyCard(icon: Icons.check_circle_outline, label: 'No accepted orders');
             return ListView.builder(
-              physics: isForStatusScreen
-                  ? null
-                  : const NeverScrollableScrollPhysics(),
+              physics: isForStatusScreen ? null : const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
               itemCount: controller.acceptedOrders.length,
-              itemBuilder: (context, index) {
-                return buildOrderItem(controller.acceptedOrders[index]);
-              },
+              itemBuilder: (context, index) => buildOrderItem(controller.acceptedOrders[index]),
             );
           } else if (status == 'completed') {
-            if (controller.completedOrders.isEmpty) {
-              return SizedBox(
-                height: Get.height * 0.6,
-                child: const Center(
-                  child: ReusableTextWidget(
-                    text: 'No Completed Tasks Found ☹',
-                    fontSize: 15,
-                  ),
-                ),
-              );
-            }
+            final completedList = controller.completedOrders;
+            if (completedList.isEmpty) return _EmptyCard(icon: Icons.done_all_outlined, label: 'No completed tasks');
             return ListView.builder(
-              physics: isForStatusScreen
-                  ? null
-                  : const NeverScrollableScrollPhysics(),
+              physics: isForStatusScreen ? null : const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
-              itemCount: controller.completedOrders.length,
-              itemBuilder: (context, index) {
-                return buildOrderItem(controller.completedOrders[index]);
-              },
+              itemCount: completedList.length,
+              itemBuilder: (context, index) => buildOrderItem(completedList[index]),
             );
           } else if (status == 'active') {
-            if (controller.activeOrders.isEmpty) {
-              return SizedBox(
-                height: Get.height * 0.6,
-                child: const Center(
-                  child: ReusableTextWidget(
-                    text: 'No Active Orders Found ☹',
-                    fontSize: 15,
-                  ),
-                ),
-              );
-            }
+            if (controller.activeOrders.isEmpty) return _EmptyCard(icon: Icons.play_circle_outline, label: 'No active orders');
             return ListView.builder(
-              physics: isForStatusScreen
-                  ? null
-                  : const NeverScrollableScrollPhysics(),
+              physics: isForStatusScreen ? null : const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
               itemCount: controller.activeOrders.length,
-              itemBuilder: (context, index) {
-                return buildOrderItem(controller.activeOrders[index]);
-              },
+              itemBuilder: (context, index) => buildOrderItem(controller.activeOrders[index]),
             );
           } else {
             if (controller.todayOrders.isEmpty) {
-              return SizedBox(
-                height: Get.height * 0.6,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const ReusableTextWidget(
-                        text: 'No Orders Found for Today ☹',
-                        fontSize: 15,
-                      ),
-                      const SizedBox(height: 16),
-                      InkWell(
-                        onTap: () {
-                          Get.to(() => ViewAllOrdersScreen());
-                        },
-                        child: const ReusableTextWidget(
-                          text: 'Go to Inbox',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blue,
-                          isUnderText: TextDecoration.underline,
-                        ),
-                      ),
-                    ],
+              return _EmptyCard(
+                icon: Icons.calendar_today_outlined,
+                label: 'No orders today',
+                action: GestureDetector(
+                  onTap: () => Get.to(() => ViewAllOrdersScreen()),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(color: _espresso, borderRadius: BorderRadius.circular(30)),
+                    child: const Text('Go to Inbox', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                   ),
                 ),
               );
             }
-            return ListView.builder(
-              // physics: isForStatusScreen ? null : const NeverScrollableScrollPhysics(),
-              scrollDirection: Axis.horizontal,
-              shrinkWrap: true,
-              itemCount: controller.todayOrders.length,
-              itemBuilder: (context, index) {
-                return buildOrderItem(controller.todayOrders[index]);
-              },
-            );
-          }
-        } else {
-          if (controller
-              .createdOrders.isEmpty) // if (controller.acceptedOrders.isEmpty)
-          {
             return SizedBox(
-              height: MediaQuery.of(context).size.height / 3,
-              child: const Center(
-                child: ReusableTextWidget(
-                  text: 'No Active Orders Found ☹',
-                  fontSize: 15,
-                ),
+              height: 280,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                shrinkWrap: true,
+                itemCount: controller.todayOrders.length,
+                itemBuilder: (context, index) => buildOrderItem(controller.todayOrders[index]),
               ),
             );
           }
+        } else {
+          if (controller.createdOrders.isEmpty) {
+            return _EmptyCard(icon: Icons.inbox_outlined, label: 'No active orders yet');
+          }
           return SizedBox(
-            height: MediaQuery.of(context).size.height / 4,
+            height: 290,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: maxItems != null
-                  ? (controller.createdOrders.length > maxItems!
-                      ? maxItems!
-                      : controller.createdOrders.length)
+                  ? (controller.createdOrders.length > maxItems! ? maxItems! : controller.createdOrders.length)
                   : controller.createdOrders.length,
-              itemBuilder: (context, index) {
-                return buildOrderItem(controller.createdOrders[
-                    index]); // buildOrderItem(controller.acceptedOrders[index]);
-              },
+              itemBuilder: (context, index) => buildOrderItem(controller.createdOrders[index]),
             ),
           );
         }
@@ -892,48 +731,40 @@ class OnGoingTask extends StatelessWidget {
   }
 
   Widget buildOrderItem(ServiceWrapper order) {
-    return InkWell(
+    final statusText = AppUtils().getOrderStatus(order);
+    final statusCfg = _statusConfig(statusText);
+
+    return GestureDetector(
       onTap: () {
-        /// Accepted, Completed, Pending
         try {
           Get.to(() => OrderDetailScreen(
-                tasks: (order.service?.description ?? '')
-                        .toString()
-                        .trim()
-                        .isNotEmpty
+                tasks: (order.service?.description ?? '').toString().trim().isNotEmpty
                     ? [order.service?.description ?? '']
                     : [],
                 suburb: order.service?.tenantId ?? '',
                 address: AppUtils().formatAddress(order.service?.address),
                 tenantName: order.service?.user?.name ?? '',
-                propertyImage: (order.imageUrls ?? []).isNotEmpty
-                    ? order.imageUrls
-                    : [ImageAssetsConst.sampleRoomPage],
-                date: AppUtils.timeStampToDate(
-                    order.service?.auditDetails?.createdTime),
-                tenantContactName: order.service?.additionalDetail?['household']?['contactNo'],
-                type: AppUtils().getOrderStatus(order),
+                propertyImage: (order.imageUrls ?? []).isNotEmpty ? order.imageUrls : [ImageAssetsConst.sampleRoomPage],
+                date: AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime),
+                tenantContactName:
+                    order.service?.additionalDetail?['household']?['contactNo']?.toString() ?? '',
+                type: statusText,
                 orderID: order.service?.serviceRequestId ?? '',
-                tenantLatitude:
-                    (order.service?.address?.latitude ?? 'N/A').toString(),
-                tenantLongitude:
-                    (order.service?.address?.longitude ?? 'N/A').toString(),
+                tenantLatitude: (order.service?.address?.latitude ?? 'N/A').toString(),
+                tenantLongitude: (order.service?.address?.longitude ?? 'N/A').toString(),
                 orderImages: [ImageAssetsConst.plotRolLogo],
                 staffMobileNumber: '<Staff Contact No>',
                 staffLocation: '<Staff Address>',
                 staffName: '<Staff Name>',
                 order: order,
-                startDate: AppUtils().getOrderStatus(order) == "created"
-                    ? AppUtils.timeStampToDate(
-                        order.service?.auditDetails?.createdTime)
+                startDate: statusText == "created"
+                    ? AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime)
                     : '',
-                acceptedDate: AppUtils().getOrderStatus(order) == "accepted"
-                    ? AppUtils.timeStampToDate(
-                        order.service?.auditDetails?.lastModifiedTime)
+                acceptedDate: statusText == "accepted"
+                    ? AppUtils.timeStampToDate(order.service?.auditDetails?.lastModifiedTime)
                     : '',
-                completedDate: AppUtils().getOrderStatus(order) == "completed"
-                    ? AppUtils.timeStampToDate(
-                        order.service?.auditDetails?.lastModifiedTime)
+                completedDate: statusText == "completed"
+                    ? AppUtils.timeStampToDate(order.service?.auditDetails?.lastModifiedTime)
                     : '',
               ));
         } on Exception catch (e, s) {
@@ -941,286 +772,307 @@ class OnGoingTask extends StatelessWidget {
         }
       },
       child: Container(
-        height: 180,
-        width: 280,
+        width: 300,
         margin: isVerticalScrollable
-            ? const EdgeInsets.symmetric(vertical: 4)
-            : const EdgeInsets.symmetric(horizontal: 4),
+            ? const EdgeInsets.symmetric(vertical: 8)
+            : const EdgeInsets.only(right: 14),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15.0),
-          border: Border.all(color: Colors.grey, width: 1.0),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: _dividerLine),
+          boxShadow: [
+            BoxShadow(color: _espresso.withOpacity(0.06), blurRadius: 24, offset: const Offset(0, 8)),
+          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Image with overlaid status badge
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              child: Stack(
                 children: [
-                  Container(
-                      height: 60,
-                      width: 60,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10.0),
-                        border: Border.all(color: Colors.grey, width: 0.1),
-                      ),
-                      child: ThumbCollage(
-                        urls: order.imageUrls ?? [],
-                        height: 100,
-                        width: double.infinity, // or the card’s width
-                        borderRadius: 10,
-                        spacing: 2,
-                      )),
-                  const SizedBox(width: 5),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 120,
-                        child: ReusableTextWidget(
-                          text: order.service?.address?.city ?? '',
-                          maxLines: 2,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            size: 15,
-                            Icons.location_on,
-                          ),
-                          const SizedBox(width: 3),
-                          SizedBox(
-                            width: 120,
-                            child: ReusableTextWidget(
-                              text: AppUtils()
-                                  .formatAddress(order.service?.address),
-                              maxLines: 4,
+                  SizedBox(
+                    height: 140,
+                    width: double.infinity,
+                    child: (order.imageUrls != null && order.imageUrls!.isNotEmpty)
+                        ? ThumbCollage(
+                            urls: order.imageUrls ?? [],
+                            height: 140,
+                            width: double.infinity,
+                            borderRadius: 24,
+                            spacing: 2,
+                          )
+                        : Container(
+                            color: _parchment,
+                            child: const Center(
+                              child: Icon(Icons.image_outlined, size: 40, color: _sand),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                    ],
                   ),
-                  const Spacer(),
-                  Container(
-                    decoration:
-                        _getDecorationBasedOnStatus(AppUtils().getOrderStatus(
-                      order,
-                    )),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          ReusableTextWidget(
-                            text: AppUtils().getOrderStatus(order),
-                            color: Colors.white,
-                            fontSize: 10,
-                            textAlign: TextAlign.center,
-                          ),
-                          if (AppUtils().getOrderStatus(order) == 'completed')
-                            const Icon(
-                              size: 16,
-                              Icons.check_circle,
-                              color: Colors.white,
-                            )
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    margin: const EdgeInsets.only(right: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: ReusableTextWidget(
-                        text: order.service?.description ?? '')),
-              ),
-              const Spacer(),
-              const Divider(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // const Icon(
-                  //   size: 15,
-                  //   Icons.date_range,
-                  // ),
-                  // const SizedBox(width: 3),
-                  ReusableTextWidget(
-                    text:
-                        'Order Date : ${AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime)}',
-                    fontSize: 13,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget buildShimmerLoader() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: ListView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        shrinkWrap: true,
-        itemCount: 5, // Placeholder item count for shimmer effect
-        itemBuilder: (context, index) {
-          return Container(
-            height: 145,
-            width: 280,
-            margin: isVerticalScrollable
-                ? const EdgeInsets.symmetric(vertical: 4)
-                : const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(15.0),
-              border: Border.all(color: Colors.grey, width: 1.0),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(5),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        height: 60,
-                        width: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10.0),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Colors.black.withOpacity(0.3)],
                         ),
                       ),
-                      const SizedBox(width: 5),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                  ),
+                  Positioned(
+                    left: 12,
+                    bottom: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: statusCfg['bg'] as Color,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            width: 120,
-                            height: 15,
-                            color: Colors.white,
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: statusCfg['dot'] as Color,
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                          const SizedBox(height: 5),
-                          Container(
-                            width: 120,
-                            height: 15,
-                            color: Colors.white,
+                          const SizedBox(width: 6),
+                          Text(
+                            statusText.toUpperCase(),
+                            style: TextStyle(
+                              color: statusCfg['text'] as Color,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                            ),
                           ),
+                          if (statusText == 'completed') ...[
+                            const SizedBox(width: 4),
+                            Icon(Icons.check_circle, size: 10, color: statusCfg['dot'] as Color),
+                          ],
                         ],
                       ),
-                      const Spacer(),
-                      Container(
-                        width: 50,
-                        height: 20,
-                        color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Content - Optimized for no overflow
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // City/Location text
+                  Text(
+                    order.service?.address?.city ?? 'Service Location',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: _espresso,
+                      letterSpacing: -0.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  
+                  // Address row
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 13, color: _sienna),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          AppUtils().formatAddress(order.service?.address),
+                          style: const TextStyle(fontSize: 12, color: _steel, height: 1.35),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
+                  
+                  // Description container
                   Container(
-                    height: 15,
-                    width: double.infinity,
-                    color: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _siennaFade,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _siennaLight),
+                    ),
+                    child: Text(
+                      order.service?.description ?? 'No description',
+                      style: const TextStyle(fontSize: 12, color: _walnut, height: 1.35),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  const Spacer(),
-                  const Divider(),
+                  const SizedBox(height: 10),
+                  
+                  // Divider
+                  Container(height: 1, color: _dividerLine),
+                  const SizedBox(height: 8),
+                  
+                  // Date row
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        size: 15,
-                        Icons.date_range,
-                      ),
-                      const SizedBox(width: 3),
-                      Container(
-                        height: 15,
-                        width: 100,
-                        color: Colors.white,
+                      const Icon(Icons.access_time_outlined, size: 12, color: _steel),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime),
+                          style: const TextStyle(fontSize: 12, color: _steel),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
 
+  Widget buildShimmerLoader() => Shimmer.fromColors(
+        baseColor: _parchment,
+        highlightColor: _cream,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          itemCount: 3,
+          itemBuilder: (context, index) => Container(
+            width: 300,
+            margin: isVerticalScrollable
+                ? const EdgeInsets.symmetric(vertical: 8)
+                : const EdgeInsets.only(right: 14),
+            decoration: BoxDecoration(color: _parchment, borderRadius: BorderRadius.circular(24)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(height: 140, color: _sand),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(height: 16, width: 140, color: _sand),
+                      const SizedBox(height: 8),
+                      Container(height: 12, width: 200, color: _sand),
+                      const SizedBox(height: 10),
+                      Container(height: 40, color: _sand),
+                      const SizedBox(height: 10),
+                      Container(height: 12, width: 100, color: _sand),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
   String _formatDate(String? dateString) {
-    if (dateString == null || dateString.isEmpty) {
+    if (dateString == null || dateString.isEmpty) return '';
+    try {
+      return DateFormat('yyyy-MM-dd').format(DateTime.parse(dateString));
+    } catch (_) {
       return '';
     }
-    try {
-      DateTime date = DateTime.parse(dateString);
-      return DateFormat('yyyy-MM-dd').format(date);
-    } catch (e) {
-      return ''; // Return an empty string if parsing fails
-    }
+  }
+}
+
+// ── Status config ─────────────────────────────────────────────────────────────
+Map<String, dynamic> _statusConfig(String status) {
+  switch (status) {
+    case 'created':
+      return {'bg': Colors.white.withOpacity(0.92), 'text': _espresso, 'dot': _sienna};
+    case 'pending':
+      return {'bg': _amberSoft, 'text': _amber, 'dot': _amber};
+    case 'accepted':
+      return {'bg': Colors.white.withOpacity(0.92), 'text': _walnut, 'dot': _steel};
+    case 'active':
+      return {'bg': _sageSoft, 'text': _sage, 'dot': _sage};
+    case 'completed':
+      return {'bg': _sageSoft, 'text': _sage, 'dot': _sage};
+    default:
+      return {'bg': _amberSoft, 'text': _amber, 'dot': _amber};
   }
 }
 
 BoxDecoration _getDecorationBasedOnStatus(String? status) {
   switch (status) {
     case 'created':
-      return BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(10),
-      );
+      return BoxDecoration(color: _siennaLight, borderRadius: BorderRadius.circular(12));
     case 'pending':
-      return BoxDecoration(
-        color: Colors.orange,
-        borderRadius: BorderRadius.circular(10),
-      );
+      return BoxDecoration(color: _amberSoft, borderRadius: BorderRadius.circular(12));
     case 'accepted':
-      return BoxDecoration(
-        color: Colors.blueGrey,
-        borderRadius: BorderRadius.circular(10),
-      );
+      return BoxDecoration(color: _parchment, borderRadius: BorderRadius.circular(12));
     case 'active':
-      return BoxDecoration(
-        color: Colors.blue,
-        borderRadius: BorderRadius.circular(10),
-      );
+      return BoxDecoration(color: _sageSoft, borderRadius: BorderRadius.circular(12));
     case 'completed':
-      return BoxDecoration(
-        color: Colors.green,
-        borderRadius: BorderRadius.circular(10),
-      );
+      return BoxDecoration(color: _sageSoft, borderRadius: BorderRadius.circular(12));
     default:
-      return BoxDecoration(
-        color: Colors.orangeAccent,
-        borderRadius: BorderRadius.circular(10),
-      );
+      return BoxDecoration(color: _amberSoft, borderRadius: BorderRadius.circular(12));
   }
 }
 
+// ── Empty Card ────────────────────────────────────────────────────────────────
+class _EmptyCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Widget? action;
+  const _EmptyCard({required this.icon, required this.label, this.action});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 160,
+        decoration: BoxDecoration(
+          color: _parchment,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: _dividerLine),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: _cream,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _sand, width: 1.5),
+                ),
+                child: Icon(icon, size: 24, color: _steel),
+              ),
+              const SizedBox(height: 10),
+              Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _walnut)),
+              if (action != null) ...[const SizedBox(height: 14), action!],
+            ],
+          ),
+        ),
+      );
+}
+
+// ── Nav ───────────────────────────────────────────────────────────────────────
 List<Widget> _widgetOptionsNearle() => <Widget>[
       HomeScreen(),
       ViewAllOrdersScreen(isFromNavigation: true),

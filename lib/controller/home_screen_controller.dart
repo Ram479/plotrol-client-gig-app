@@ -73,6 +73,10 @@ class HomeScreenController extends GetxController {
 
   List<ServiceWrapper> createdOrders = [];
 
+  List<ServiceWrapper> todayCreatedOrders = [];
+
+  List<ServiceWrapper> todayCompletedOrders = [];
+
   List<String> address = [];
 
   List<String> notes = [];
@@ -171,32 +175,98 @@ class HomeScreenController extends GetxController {
   }
 
   getPropertiesResult() async {
+    // ── Clear stale data immediately so no previous session leaks through ──────
+    getPropertiesDetails = [];
+    isPropertyLoading.value = true;
+    update();
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final userMobileNumber = prefs.getString('mobileNumber');
     String? userInfoString = prefs.getString('userInfo');
     Map? userInfo = userInfoString != null ? jsonDecode(userInfoString) : null;
-    IndividualsResponse? individualsResponse = await loginRepository.getIndividual({
-      "Individual": {
-        "mobileNumber": userMobileNumber != null && userMobileNumber.toString().trim().isNotEmpty ? [ userMobileNumber.toString().trim() ] : null
-      }
-    }, userInfo);
-    // Store user details
-    if(individualsResponse != null ){
 
-      final loggedInIndividual = individualsResponse.individuals;
+    logger.i('[getPropertiesResult] START — mobileNumber=$userMobileNumber');
 
-      HouseholdMembersResponse? householdMembers = await householdMemberRepository.getHouseholdMember({
-        "HouseholdMember" : {
-          "individualId": loggedInIndividual?.map((i) => i.id).toList()
-        }
-      });
-    HouseholdsResponse? result = await _getPropertiesRepository.getProperties((householdMembers?.householdMembers ?? []).isNotEmpty ? householdMembers!.householdMembers!.map((h) => h.householdClientReferenceId! ).toList() : []);
-    if ((result?.households ?? []).isNotEmpty) {
-      getPropertiesDetails = await enrichHouseholdsWithImageUrls(result?.households ?? [], ApiConstants.tenantId);
+    if (userMobileNumber == null || userMobileNumber.trim().isEmpty) {
+      logger.w('[getPropertiesResult] No mobileNumber in prefs — aborting property load');
       isPropertyLoading.value = false;
       update();
-     }
+      return;
     }
+
+    IndividualsResponse? individualsResponse = await loginRepository.getIndividual({
+      "Individual": {
+        "mobileNumber": [ userMobileNumber.trim() ]
+      }
+    }, userInfo);
+
+    logger.i('[getPropertiesResult] Individual search returned ${individualsResponse?.individuals?.length ?? 0} record(s)');
+    for (final ind in individualsResponse?.individuals ?? []) {
+      logger.i('[getPropertiesResult]   individual id=${ind.id} clientRefId=${ind.clientReferenceId} mobile=${ind.mobileNumber}');
+    }
+
+    if (individualsResponse == null || (individualsResponse.individuals ?? []).isEmpty) {
+      logger.w('[getPropertiesResult] No individual found for mobile=$userMobileNumber — no properties to show');
+      isPropertyLoading.value = false;
+      update();
+      return;
+    }
+
+    final loggedInIndividual = individualsResponse.individuals!;
+
+    // Send BOTH server-assigned IDs and client reference IDs so the backend's
+    // OR filter matches records created with either identifier type.
+    final individualServerIds = loggedInIndividual.map((i) => i.id).where((id) => id != null && id!.isNotEmpty).map((id) => id!).toList();
+    final individualClientRefIds = loggedInIndividual.map((i) => i.clientReferenceId).where((id) => id != null && id!.isNotEmpty).map((id) => id!).toList();
+
+    logger.i('[getPropertiesResult] Searching household members — serverIds=$individualServerIds clientRefIds=$individualClientRefIds');
+
+    HouseholdMembersResponse? householdMembers = await householdMemberRepository.getHouseholdMember({
+      "HouseholdMember": {
+        "individualId": individualServerIds.isNotEmpty ? individualServerIds : null,
+        "individualClientReferenceId": individualClientRefIds.isNotEmpty ? individualClientRefIds : null,
+      }
+    });
+
+    final memberList = householdMembers?.householdMembers ?? [];
+    logger.i('[getPropertiesResult] Household member search returned ${memberList.length} record(s)');
+    for (final m in memberList) {
+      logger.i('[getPropertiesResult]   member id=${m.id} householdClientRefId=${m.householdClientReferenceId} individualId=${m.individualId}');
+    }
+
+    if (memberList.isEmpty) {
+      logger.w('[getPropertiesResult] No household members found — user has no properties');
+      isPropertyLoading.value = false;
+      update();
+      return;
+    }
+
+    final householdClientRefIds = memberList
+        .map((h) => h.householdClientReferenceId)
+        .where((id) => id != null && id!.isNotEmpty)
+        .map((id) => id!)
+        .toList();
+
+    logger.i('[getPropertiesResult] Fetching households for clientRefIds=$householdClientRefIds');
+
+    HouseholdsResponse? result = await _getPropertiesRepository.getProperties(householdClientRefIds);
+
+    final fetchedHouseholds = result?.households ?? [];
+    logger.i('[getPropertiesResult] Household search returned ${fetchedHouseholds.length} record(s)');
+    for (final hh in fetchedHouseholds) {
+      logger.i('[getPropertiesResult]   household id=${hh.id} clientRefId=${hh.clientReferenceId}');
+    }
+
+    if (fetchedHouseholds.isNotEmpty) {
+      getPropertiesDetails = await enrichHouseholdsWithImageUrls(fetchedHouseholds, ApiConstants.tenantId)
+        ..sort((a, b) => (b.auditDetails?.createdTime ?? 0).compareTo(a.auditDetails?.createdTime ?? 0));
+      logger.i('[getPropertiesResult] Loaded ${getPropertiesDetails.length} properties for user mobileNumber=$userMobileNumber');
+    } else {
+      logger.w('[getPropertiesResult] No households returned — showing empty state');
+    }
+
+    isPropertyLoading.value = false;
+    update();
   }
 
   // Future<List<FileStoreModel>?> fetchFiles(List<String> storeIds, String tenantId) async {
@@ -226,21 +296,41 @@ class HomeScreenController extends GetxController {
       '${ApiConstants.host}${ApiConstants.fileFetch}?tenantId=$tenantId&fileStoreIds=${storeIds.join(",")}',
     );
 
+    logger.i('[fetchFiles][HomeController] Request URL: $uri');
+    logger.i('[fetchFiles][HomeController] Store IDs requested: $storeIds');
+
     final headers = {
       'accept': 'application/json, text/plain, */*',
-      // 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
-      // Add referer if your backend requires it
-      // 'referer': 'https://qa.digit.org/digit-ui/employee/dss/dashboard/fsm',
     };
 
     final res = await http.get(uri, headers: headers);
+
+    logger.i('[fetchFiles][HomeController] Response status: ${res.statusCode}');
+    logger.i('[fetchFiles][HomeController] Response body: ${res.body}');
 
     if (res.statusCode == 200) {
       fileStoreListModel = FileStoreListModel.fromJson(
         json.decode(res.body) as Map<String, dynamic>,
       );
+      // Use the URL exactly as returned by the server — it already contains
+      // the server's own accessible IP (works for both emulator and real device
+      // because android:usesCleartextTraffic="true" allows HTTP on all IPs).
+      // Only fix genuinely relative paths (no host) by prepending ApiConstants.host.
+      for (final f in fileStoreListModel.fileStoreIds ?? []) {
+        final rawUrl = f.url ?? '';
+        if (rawUrl.isEmpty) continue;
+
+        final parsed = Uri.tryParse(rawUrl);
+        if (parsed != null && !parsed.hasAuthority) {
+          // Relative path — prepend host so it becomes absolute
+          f.url = '${ApiConstants.host}$rawUrl';
+          logger.w('[fetchFiles][HomeController] Relative URL for id=${f.id}, prepended host: ${f.url}');
+        } else {
+          logger.i('[fetchFiles][HomeController] id=${f.id}, url=${f.url}');
+        }
+      }
     } else {
-      print('Failed to fetch files: ${res.statusCode} ${res.body}');
+      logger.e('[fetchFiles][HomeController] Failed: ${res.statusCode} ${res.body}');
     }
 
     return fileStoreListModel?.fileStoreIds;
@@ -276,9 +366,19 @@ class HomeScreenController extends GetxController {
       if (hh != null) {
         hh.imageUrls ??= [];
         if (file.url != null && file.url!.isNotEmpty) {
-          hh.imageUrls!.add(file.url!.split(',').first);
+          final url = file.url!.split(',').first;
+          hh.imageUrls!.add(url);
+          logger.i('[enrichHouseholds] Added image URL: $url for household');
+        } else {
+          logger.w('[enrichHouseholds] file id=${file.id} has empty url, skipping');
         }
+      } else {
+        logger.w('[enrichHouseholds] No household found for file id=${file.id}');
       }
+    }
+
+    for (final hh in households) {
+      logger.i('[enrichHouseholds] household id=${hh.id} -> imageUrls=${hh.imageUrls}');
     }
 
     return households;
@@ -331,21 +431,28 @@ class HomeScreenController extends GetxController {
       }
 
       if (allHouseholdIds.isNotEmpty) {
+        logger.i('[enrichOrders][HomeController] Fetching ${allHouseholdIds.length} image IDs');
         final models = await fetchFiles(allHouseholdIds.toList(), tenantId);
+        logger.i('[enrichOrders][HomeController] Got ${models?.length ?? 0} file models back');
+
         final Map<String, String> idToUrl = {
           for (final f in (models ?? <FileStoreModel>[]))
             if ((f.url ?? '').isNotEmpty && (f.id ?? '').isNotEmpty) f.id.toString(): f.url!.split(',').first
         };
+
+        logger.i('[enrichOrders][HomeController] idToUrl map: $idToUrl');
 
         for (final entry in orderToHouseholdIds.entries) {
           final urls = <String>[];
           for (final id in entry.value) {
             final url = idToUrl[id];
             if (url != null && url.isNotEmpty) urls.add(url);
+            else logger.w('[enrichOrders][HomeController] No URL found for id=$id');
           }
           // dedupe, keep order
           final seen = <String>{};
           entry.key.imageUrls = urls.where((u) => seen.add(u)).toList();
+          logger.i('[enrichOrders][HomeController] order=${entry.key.service?.serviceRequestId} -> imageUrls=${entry.key.imageUrls}');
         }
       }
 
@@ -396,15 +503,17 @@ class HomeScreenController extends GetxController {
     String? userUuid = prefs.getString('userUuid');
     UserRequest? userRequest = (userInfoString ?? "").isNotEmpty ? UserRequest.fromJson(jsonDecode(userInfoString!)) : null;
 
-    PgrServiceResponse? result = await _getOrdersRepository.getOrders(
-        AppUtils().checkIsHousehold(userRequest?.roles ?? []) && !AppUtils().checkIsPGRAdmin(userRequest?.roles ?? []) ? {
-      'mobileNumber' : mobileNumber,
-      "fromDate": AppUtils.getDayStartAndEnd().startMillis.toString(),
-      "toDate": AppUtils.getDayStartAndEnd().endMillis.toString(),
-    } : {
-          "fromDate": AppUtils.getDayStartAndEnd().startMillis.toString(),
-          "toDate": AppUtils.getDayStartAndEnd().endMillis.toString(),
-        });
+    final isHousehold = AppUtils().checkIsHousehold(userRequest?.roles ?? []) && !AppUtils().checkIsPGRAdmin(userRequest?.roles ?? []);
+    final isGig = AppUtils().checkIsGig(userRequest?.roles ?? []);
+    logger.i('[getOrdersResult] roles=${userRequest?.roles?.map((r) => r.code).toList()}, isHousehold=$isHousehold, isGig=$isGig, uuid=${userRequest?.uuid}');
+
+    final queryParams = isHousehold ? {'mobileNumber': mobileNumber} : <String, String>{};
+    logger.i('[getOrdersResult] API queryParams=$queryParams');
+
+    PgrServiceResponse? result = await _getOrdersRepository.getOrders(queryParams);
+
+    logger.i('[getOrdersResult] API returned ${result?.serviceWrappers?.length ?? 0} total records');
+
     if ((result?.serviceWrappers ?? []).isNotEmpty) {
 
       getOrderDetails.clear();
@@ -413,74 +522,78 @@ class HomeScreenController extends GetxController {
           ?.where((s) => s.service?.additionalDetail?['appSource'] == 'PLOTROL')
           .toList() ?? [];
 
-      getOrderDetails = AppUtils().checkIsGig(userRequest?.roles ?? [])
-          ? await enrichOrdersWithImageUrls(
-              plotrolOrders
-                  .where((s) => (s.workflow?.assignes ?? []).contains(userRequest?.uuid) ||
-                      s.service?.applicationStatus == "RESOLVED")
-                  .toList(),
-              ApiConstants.tenantId)
-          : await enrichOrdersWithImageUrls(plotrolOrders, ApiConstants.tenantId);
+      logger.i('[getOrdersResult] After PLOTROL filter: ${plotrolOrders.length} records');
+
+      final assignedOrFiltered = isGig
+          ? plotrolOrders.where((s) =>
+              (s.workflow?.assignes ?? []).contains(userRequest?.uuid)).toList()
+          : plotrolOrders;
+
+      logger.i('[getOrdersResult] After role filter: ${assignedOrFiltered.length} records');
+
+      getOrderDetails = await enrichOrdersWithImageUrls(assignedOrFiltered, ApiConstants.tenantId);
+
       pendingOrders.clear();
       todayOrders.clear();
       otherOrders.clear();
       acceptedOrders.clear();
       createdOrders.clear();
+      todayCreatedOrders.clear();
+      todayCompletedOrders.clear();
       activeOrders.clear();
       completedOrders.clear();
+
+      // Start of today: 12:00 AM
       DateTime now = DateTime.now();
-      String today =
-          DateFormat('dd/MM/yyyy').format(now); // Format to match assignDate
-      // Start of the day: 12:00 AM
       DateTime startDateTime = DateTime(now.year, now.month, now.day, 0, 0, 0, 0);
       int startDate = startDateTime.millisecondsSinceEpoch;
-      print("StartDate: ${startDate}");
-      // End of the day: 11:59:59.999 PM
+      // End of today: 11:59:59.999 PM
       DateTime endDateTime = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
       int endDate = endDateTime.millisecondsSinceEpoch;
-      print("EndDate: ${endDate}");
+      logger.i('[getOrdersResult] Today window: $startDate – $endDate');
 
       for (var order in getOrderDetails) {
-        if (order.workflow?.action == 'CREATE') {
-          createdOrders.add(order);
-        }
-        String? assignDate;
-        try {
-          assignDate = AppUtils.timeStampToDate(order.service?.auditDetails?.createdTime);
-        } catch (e) {
-          continue;
-        }
+        final action = order.workflow?.action;
+        final createdTime = order.service?.auditDetails?.createdTime ?? 0;
+        final id = order.service?.serviceRequestId ?? 'unknown';
 
-        if ((order.service?.auditDetails?.createdTime ?? 0) >= startDate && (order.service?.auditDetails?.createdTime ?? 0) <=  endDate ) {
-          todayOrders.add(order);
-        } else {
-          otherOrders.add(order);
-        }
-        if (order.workflow?.action == 'ASSIGN') {
+        // Categorise by workflow action FIRST – must not be inside any try/catch
+        // that can skip via continue.
+        if (action == 'CREATE') {
+          createdOrders.add(order);
+        } else if (action == 'ASSIGN') {
           createdOrders.add(order);
           acceptedOrders.add(order);
-        }
-        // else if (order.orderstatus == 'active') {
-        //   activeOrders.add(order);
-        // }
-        else if (order.workflow?.action == 'RESOLVE') {
+        } else if (action == 'RESOLVE') {
           completedOrders.add(order);
         }
 
-        // else if (order.orderstatus == 'pending') {
-        //   pendingOrders.add(order);
-        // }
+        // Categorise into today vs other (timestamp parsing can fail safely)
+        try {
+          if (createdTime >= startDate && createdTime <= endDate) {
+            todayOrders.add(order);
+            if (action == 'CREATE' || action == 'ASSIGN') {
+              todayCreatedOrders.add(order);
+            }
+            if (action == 'RESOLVE') {
+              todayCompletedOrders.add(order);
+            }
+          } else {
+            otherOrders.add(order);
+          }
+        } catch (e) {
+          logger.e('[getOrdersResult] Error parsing createdTime for order $id: $e');
+        }
+
+        logger.i('[getOrdersResult] order=$id action=$action status=${order.service?.applicationStatus} createdTime=$createdTime');
       }
-      logger.i('Todays Order : ${todayOrders}');
-      logger.i('Other Orders : ${otherOrders}');
-      logger.i('accepted friends : ${acceptedOrders}');
-      logger.i('active Orders : ${activeOrders}');
-      logger.i('completed orders : ${completedOrders}');
-      logger.i('The whole response : ${getOrderDetails}');
-      logger.i('The Created Orders : ${createdOrders}');
-      isOrderLoading.value = false;
-      update();
+
+      logger.i('[getOrdersResult] Summary — total=${getOrderDetails.length}, today=${todayOrders.length}, created=${createdOrders.length}, accepted=${acceptedOrders.length}, completed=${completedOrders.length}, other=${otherOrders.length}');
+    } else {
+      logger.w('[getOrdersResult] API returned empty serviceWrappers — no orders loaded');
     }
+    isOrderLoading.value = false;
+    update();
   }
 
   getAssigneeDetails() async {
@@ -504,7 +617,7 @@ class HomeScreenController extends GetxController {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     if ((result?.user ?? []).isNotEmpty) {
       tenantFirstName.value = result?.user?.first.name?.split(' ').first ?? '';
-      tenantLastName.value = (result?.user?.first.name!.split(' ').length ?? 0) > 1 ? (result?.user?.first.name!.split(' ').last ?? '') : '';
+      tenantLastName.value = (result?.user?.first.name?.split(' ').length ?? 0) > 1 ? (result?.user?.first.name?.split(' ').last ?? '') : '';
       tenantEmail.value = result?.user?.first.emailId ?? '';
       tenantContactNumber.value = result?.user?.first.mobileNumber ?? '';
       // tenantSuburb.value = result?.details?.suburb ?? '';

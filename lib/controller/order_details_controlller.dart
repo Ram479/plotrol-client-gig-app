@@ -345,10 +345,9 @@ class OrderDetailsController extends GetxController {
     if ((order?.workflow?.assignes ?? []).isNotEmpty) {
       isAssigneesLoading.value = true;
       EmployeeResponse? assignee = await assigneesRepository.getAssignees({
-        // "userUuid": [order?.workflow?.assignes?.first]
-        "codes": "PLOTHELPDESK"
+        "uuid": order?.workflow?.assignes?.first,
       });
-      assignedStaff = assignee?.employees.first;
+      assignedStaff = (assignee?.employees ?? []).isNotEmpty ? assignee!.employees.first : null;
       isAssigneesLoading.value = false;
       update();
     }
@@ -376,25 +375,11 @@ class OrderDetailsController extends GetxController {
     bool isHelpDeskUser = AppUtils().checkIsGig(userRequest?.roles ?? []);
     bool isDistributor = AppUtils().checkIsHousehold(userRequest?.roles ?? []);
     EmployeeResponse? employeeResponse =
-        await assigneesRepository.getAssignees(isHelpDeskUser || isDistributor
-            ? {
-                // "userUuid": [order?.workflow?.assignes?.first]
-                "codes": "PLOTHELPDESK"
-              }
-            : {"roles": "HELPDESK_USER"});
+        await assigneesRepository.getAssignees({"roles": "HELPDESK_USER"});
 
     List<Employee>? filteredEmployees =
         employeeResponse?.employees.where((employee) {
-      final hasValidAssignment = (employee.assignments.isNotEmpty ?? false) &&
-          employee.assignments.any((assignment) =>
-              assignment.department != null &&
-              assignment.designation != null &&
-              assignment.department == "eGov");
-
-      final hasValidUser =
-          employee.user?.userServiceUuid != null && employee.user?.uuid != null;
-
-      return hasValidAssignment && hasValidUser;
+      return employee.user?.uuid != null && (employee.isActive ?? true);
     }).toList();
 
     if (filteredEmployees != null && filteredEmployees.isNotEmpty) {
@@ -449,51 +434,33 @@ class OrderDetailsController extends GetxController {
             : null;
         service?.applicationStatus = order.service?.applicationStatus;
         service?.auditDetails = auditDetails;
-        workflow?.action =
-        order.service?.applicationStatus == "PENDING_ASSIGNMENT" &&
-            AppUtils().checkIsGig(user.roles ?? [])
-            ? "RESOLVE"
-            : "ASSIGN";
-        workflow?.assignes =
-        order.service?.applicationStatus == "PENDING_ASSIGNMENT" &&
-            AppUtils().checkIsGig(user.roles ?? [])
+        final bool isGig = AppUtils().checkIsGig(user.roles ?? []);
+        workflow?.action = isGig ? "RESOLVE" : "ASSIGN";
+        workflow?.assignes = isGig
             ? null
             : selectedAssignee?.user?.userServiceUuid != null
-            ? [selectedAssignee?.user?.userServiceUuid]
-            : [];
-        service?.additionalDetail =
-        AppUtils().checkIsGig(user.roles ?? []) ? service.additionalDetail !=
-            null
+                ? [selectedAssignee?.user?.userServiceUuid]
+                : [];
+        service?.additionalDetail = isGig
             ? {
-              ...additionalDetailMap,
-              if (uploadedImageList.isNotEmpty)
-                "checklist":  selectedCheckBoxItems.join("|").toString(),
-              "unableToLocateProperty": isUTL ,
-              "remarks": remarksCtrl.value ?? '',
-              "appSource": "PLOTROL",
-              if (uploadedImageList.isNotEmpty)
-                ...Map.fromEntries(
-                  uploadedImageList.asMap().entries.map(
-                        (entry) => MapEntry(
-                      'report_${entry.key + 1}',
-                      entry.value,
+                ...additionalDetailMap,
+                if (uploadedImageList.isNotEmpty)
+                  "checklist": selectedCheckBoxItems.join("|").toString(),
+                "unableToLocateProperty": isUTL,
+                "remarks": remarksCtrl.value ?? '',
+                "appSource": "PLOTROL",
+                if (uploadedImageList.isNotEmpty)
+                  ...Map.fromEntries(
+                    uploadedImageList.asMap().entries.map(
+                          (entry) => MapEntry(
+                        'report_${entry.key + 1}',
+                        entry.value,
+                      ),
                     ),
                   ),
-                ),
-            }
-            : {
-          if (uploadedImageList.isNotEmpty)
-            "checklist":  selectedCheckBoxItems.join("|").toString(),
-          "unableToLocateProperty": isUTL ,
-          "remarks": remarksCtrl.value ?? '',
-          "appSource": "PLOTROL",
-
-        } : order.service?.additionalDetail;
-        workflow?.hrmsAssignes =
-        order.service?.applicationStatus == "PENDING_ASSIGNMENT" &&
-            AppUtils().checkIsGig(user.roles ?? [])
-            ? null
-            : [selectedAssignee?.user?.uuid];
+              }
+            : order.service?.additionalDetail;
+        workflow?.hrmsAssignes = isGig ? null : [selectedAssignee?.user?.uuid];
         PgrServiceResponse? result =
         await updatePropertiesRepository.updateBooking(ServiceWrapper(
           service: service,

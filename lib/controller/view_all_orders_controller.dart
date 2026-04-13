@@ -13,7 +13,7 @@ import '../helper/api_constants.dart';
 import '../model/response/autentication_response/autentication_response.dart';
 import '../model/response/book_service/file_store_model.dart';
 
-class ViewAllOrdersController extends GetxController with GetSingleTickerProviderStateMixin {
+class ViewAllOrdersController extends GetxController with GetTickerProviderStateMixin {
   // TabController
   late TabController tabController;
 
@@ -41,12 +41,23 @@ class ViewAllOrdersController extends GetxController with GetSingleTickerProvide
 
   // Check user role
   Future<void> checkForRole() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? userInfoString = prefs.getString('userInfo');
-    if (userInfoString != null && userInfoString.isNotEmpty) {
-      UserRequest? user = UserRequest.fromJson(jsonDecode(userInfoString));
-      isHelpDeskUser.value = AppUtils().checkIsGig(user.roles ?? []);
-      isPGRAdmin.value = AppUtils().checkIsPGRAdmin(user.roles ?? []);
+    isScreenLoading.value = true;
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? userInfoString = prefs.getString('userInfo');
+      if (userInfoString != null && userInfoString.isNotEmpty) {
+        UserRequest? user = UserRequest.fromJson(jsonDecode(userInfoString));
+        isHelpDeskUser.value = AppUtils().checkIsGig(user.roles ?? []);
+        isPGRAdmin.value = AppUtils().checkIsPGRAdmin(user.roles ?? []);
+      }
+      final int tabCount = isHelpDeskUser.value ? 2 : 3;
+      if (tabController.length != tabCount) {
+        final oldController = tabController;
+        tabController = TabController(length: tabCount, vsync: this);
+        WidgetsBinding.instance.addPostFrameCallback((_) => oldController.dispose());
+      }
+    } catch (e) {
+      print('Error in checkForRole: $e');
     }
     isScreenLoading.value = false;
     update();
@@ -113,8 +124,7 @@ class ViewAllOrdersController extends GetxController with GetSingleTickerProvide
             ? await enrichOrdersWithImageUrls(
                 plotrolOrders
                         .where((s) =>
-                            (s.workflow?.assignes ?? []).contains(userRequest?.uuid) ||
-                            s.service?.applicationStatus == "RESOLVED")
+                            (s.workflow?.assignes ?? []).contains(userRequest?.uuid))
                         .toList(),
                 ApiConstants.tenantId)
             : await enrichOrdersWithImageUrls(
@@ -161,13 +171,23 @@ class ViewAllOrdersController extends GetxController with GetSingleTickerProvide
     update();
   }
 
-  // Filter orders by lastModifiedTime
+  // Filter orders by lastModifiedTime.
+  // ASSIGNED tasks bypass the filter — the backend always returns them so gig
+  // workers see their full workload regardless of when the assignment occurred.
+  // All other statuses (including RESOLVED) use lastModifiedTime, consistent
+  // with the backend which returns RESOLVED tasks by their resolve (modified) time.
   List<ServiceWrapper> filterOrdersByLastModifiedDate(
     List<ServiceWrapper> orders,
     int fromMillis,
     int toMillis,
   ) {
     return orders.where((order) {
+      final status = AppUtils().getOrderStatus(order);
+
+      // Assigned and completed orders are always valuable to show.
+      // For historical audit and completed tracking, do not limit by date.
+      if (status == 'accepted' || status == 'completed') return true;
+
       final lastModifiedTime = order.service?.auditDetails?.lastModifiedTime ?? 0;
       return lastModifiedTime >= fromMillis && lastModifiedTime <= toMillis;
     }).toList();
@@ -216,21 +236,28 @@ class ViewAllOrdersController extends GetxController with GetSingleTickerProvide
       }
 
       if (allHouseholdIds.isNotEmpty) {
+        print('[enrichOrders][ViewAllOrders] Fetching ${allHouseholdIds.length} image IDs');
         final models = await fetchFiles(allHouseholdIds.toList(), tenantId);
+        print('[enrichOrders][ViewAllOrders] Got ${models?.length ?? 0} file models back');
+
         final Map<String, String> idToUrl = {
           for (final f in (models ?? <FileStoreModel>[]))
             if ((f.url ?? '').isNotEmpty && (f.id ?? '').isNotEmpty) f.id.toString(): f.url!.split(',').first
         };
+
+        print('[enrichOrders][ViewAllOrders] idToUrl: $idToUrl');
 
         for (final entry in orderToHouseholdIds.entries) {
           final urls = <String>[];
           for (final id in entry.value) {
             final url = idToUrl[id];
             if (url != null && url.isNotEmpty) urls.add(url);
+            else print('[enrichOrders][ViewAllOrders] No URL for id=$id');
           }
           // dedupe, keep order
           final seen = <String>{};
           entry.key.imageUrls = urls.where((u) => seen.add(u)).toList();
+          print('[enrichOrders][ViewAllOrders] order=${entry.key.service?.serviceRequestId} -> imageUrls=${entry.key.imageUrls}');
         }
       }
 
@@ -282,18 +309,41 @@ class ViewAllOrdersController extends GetxController with GetSingleTickerProvide
       '${ApiConstants.host}${ApiConstants.fileFetch}?tenantId=$tenantId&fileStoreIds=${storeIds.join(",")}',
     );
 
+    print('[fetchFiles][ViewAllOrders] Request URL: $uri');
+    print('[fetchFiles][ViewAllOrders] Store IDs: $storeIds');
+
     final headers = {
       'accept': 'application/json, text/plain, */*',
     };
 
     final res = await http.get(uri, headers: headers);
 
+    print('[fetchFiles][ViewAllOrders] Response status: ${res.statusCode}');
+    print('[fetchFiles][ViewAllOrders] Response body: ${res.body}');
+
     if (res.statusCode == 200) {
       fileStoreListModel = FileStoreListModel.fromJson(
         json.decode(res.body) as Map<String, dynamic>,
       );
+      // Use the URL exactly as returned by the server — it already contains
+      // the server's own accessible IP (works for both emulator and real device
+      // because android:usesCleartextTraffic="true" allows HTTP on all IPs).
+      // Only fix genuinely relative paths (no host) by prepending ApiConstants.host.
+      for (final f in fileStoreListModel.fileStoreIds ?? []) {
+        final rawUrl = f.url ?? '';
+        if (rawUrl.isEmpty) continue;
+
+        final parsed = Uri.tryParse(rawUrl);
+        if (parsed != null && !parsed.hasAuthority) {
+          // Relative path — prepend host so it becomes absolute
+          f.url = '${ApiConstants.host}$rawUrl';
+          print('[fetchFiles][ViewAllOrders] Relative URL for id=${f.id}, prepended host: ${f.url}');
+        } else {
+          print('[fetchFiles][ViewAllOrders] id=${f.id}, url=${f.url}');
+        }
+      }
     } else {
-      print('Failed to fetch files: ${res.statusCode} ${res.body}');
+      print('[fetchFiles][ViewAllOrders] Failed: ${res.statusCode} ${res.body}');
     }
 
     return fileStoreListModel?.fileStoreIds;
